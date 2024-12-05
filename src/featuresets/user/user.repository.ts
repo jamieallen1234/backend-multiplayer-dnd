@@ -1,5 +1,4 @@
 import pool from "../../db";
-import { User } from "./user.schema";
 
 /**
  * Handles all db operations on the User table.
@@ -10,6 +9,7 @@ class UserRepository {
         
     }
 
+    /*
     public async getIndex(): Promise<User[]> {
         const result = await pool.query("SELECT * FROM users");
         const users: User[] = result.rows;
@@ -35,6 +35,7 @@ class UserRepository {
     public async createUserTransaction(): Promise<void> {
 
     }
+    */
 }
 
 export default UserRepository;

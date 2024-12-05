@@ -1,10 +1,17 @@
 import { Request, Response } from "express";
 import pool from "../../db";
 import { QueryResult } from "pg";
+import UserService from "./user.service";
 
 // https://node-postgres.com/features/queries
 class UserController {
-  public async getIndex(req: Request, res: Response): Promise<void> {
+    private userService: UserService;
+    constructor(userService: UserService) {
+        this.userService = userService;
+    }
+
+  /*
+    public async getIndex(req: Request, res: Response): Promise<void> {
     try {
       const result = await pool.query("SELECT * FROM users");
 
@@ -106,6 +113,7 @@ class UserController {
       res.status(500).json({ error: (error as Error).message });
     }
   }
+  */
 }
 
 export default UserController;
