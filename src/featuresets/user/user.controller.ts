@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import pool from "../db";
+import pool from "../../db";
 import { QueryResult } from "pg";
 
 // https://node-postgres.com/features/queries

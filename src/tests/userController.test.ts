@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import UserController from "../controllers/userController";
+import UserController from "../featuresets/user/user.controller";
 import pool from "../db";
 
 jest.mock("../db");
