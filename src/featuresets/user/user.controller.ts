@@ -2,14 +2,51 @@ import { Request, Response } from "express";
 import pool from "../../db";
 import { QueryResult } from "pg";
 import UserService from "./user.service";
+import { CreateCreatureData } from "./user.schema";
 
 // https://node-postgres.com/features/queries
 class UserController {
     private userService: UserService;
     constructor(userService: UserService) {
         this.userService = userService;
+        console.log(`userService set to ${this.userService}`);
     }
 
+    public async createMonster(req: Request, res: Response): Promise<void> {
+        try {
+            const monsterDetails: CreateCreatureData = req.body.monsterDetails;
+            const monster = await this.userService.createMonster(monsterDetails);
+            
+            res.status(200).json(monster);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: (error as Error).message });
+        }
+    }
+
+    public async getMonsters(req: Request, res: Response): Promise<void> {
+        try {
+            const monsters = await this.userService.getMonsters();
+            
+            res.status(200).json(monsters);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: (error as Error).message });
+        }
+    }
+
+    public async getIndex(req: Request, res: Response): Promise<void> {
+        try {
+          const result = await pool.query("SELECT * FROM users");
+    
+          console.log({ result: JSON.stringify(result) });
+    
+          res.status(200).json(result.rows);
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: (error as Error).message });
+        }
+    }
   /*
     public async getIndex(req: Request, res: Response): Promise<void> {
     try {

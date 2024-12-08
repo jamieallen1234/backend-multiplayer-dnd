@@ -1,6 +1,36 @@
-# Boilerplate Typescript, Node.js, Express, and PostgreSQL
+# DnD Multiplayer Demo
 
-This project is a basic template designed for interview purposes. It is built with TypeScript, Node.js, Express, and PostgreSQL, all containerized using Docker. This boilerplate provides a solid foundation for a web application, allowing you to focus on implementing business logic without worrying about the initial setup.
+This project is a designed to simulate a 2-4 player game of DnD with an Admin.
+
+The project makes use of programming best practices such as seperation-of-concern, MCS (model-controller-service) and ECS (entity-component-system).
+
+MCS:
+Model - Repository classes that exclusively interact with the DB tables
+Controller - Controller classes that take care of security, authentication, authorization and interact with service classes
+Service - Service classes that take care of business logic and interact with the models
+
+Seperation of Concerns:
+.routes - API (urls + http methods)
+.controller - Incoming requests and outgoing responses (TODO: add security layer - authentication and authorization)
+.service - Business logic
+.repository - DB connections and queries
+.schema - Data schemas
+
+ECS:
+Each entity is made up of components to make the data structures easily reusable and more flexible.
+ex. A creature has properties, type, inventory, equipment, abilities and movement components
+
+
+TODO: change folder structure:
+    API - routes + controllers
+    models - DB
+    services - Services
+    subscribers - event handlers
+
+
+# Template - Typescript, Node.js, Express, and PostgreSQL
+
+This project uses a basic template designed for interview purposes. It is built with TypeScript, Node.js, Express, and PostgreSQL, all containerized using Docker.
 
 ## Getting Started
 
