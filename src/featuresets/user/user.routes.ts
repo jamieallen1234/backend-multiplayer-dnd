@@ -9,27 +9,29 @@ const userService = new UserService(userRepository);
 const userController = new UserController(userService);
 
 
-/*
-userRoutes.get("/users", userController.getIndex);
-userRoutes.post("/users", userController.createUser);
-userRoutes.post("/usersTransaction", userController.createUserTransaction);
-userRoutes.get("/users/:id", userController.getUserById);
-userRoutes.put("/users/:id", userController.updateUser);
-userRoutes.delete("/users/:id", userController.deleteUser);
-*/
-userRoutes.get("/users", userController.getIndex.bind(userController));
-
-// Create, Read, Update, Delete
-
-// Admin Routes
+/* ADMIN ROUTES */
 userRoutes.post('/monster', userController.createMonster.bind(userController));
 userRoutes.put('/monster/:id', userController.updateMonster.bind(userController));
 userRoutes.delete('/monster/:id', userController.deleteMonster.bind(userController));
 
-// Player Routes
+userRoutes.post('/character', userController.createCharacter.bind(userController));
+userRoutes.put('/character/:id', userController.updateCharacter.bind(userController));
+userRoutes.delete('/character/:id', userController.deleteCharacter.bind(userController));
 
-// Shared Routes
+// userRoutes.post('/npc', userController.createNpc.bind(userController));
+// userRoutes.put('/npc/:id', userController.updateNpc.bind(userController));
+// userRoutes.delete('/npc/:id', userController.deleteNpc.bind(userController));
+
+/* PLAYER ROUTES */
+
+/* SHARED ROUTES */
 userRoutes.get('/monster', userController.getMonsters.bind(userController));
 userRoutes.get('/monster/:id', userController.getMonster.bind(userController));
+
+userRoutes.get('/character', userController.getCharacters.bind(userController));
+userRoutes.get('/character/:id', userController.getCharacter.bind(userController));
+
+// userRoutes.get('/npc', userController.getNpcs.bind(userController));
+// userRoutes.get('/npc/:id', userController.getNpc.bind(userController));
 
 export default userRoutes;

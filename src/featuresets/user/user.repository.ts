@@ -97,7 +97,7 @@ class UserRepository {
 
         const result = await pool.query('DELETE FROM creatures WHERE id = $1', [id]);
 
-        return (result?.rowCount ?? 0) > 1;
+        return true;
     }
 
     /**

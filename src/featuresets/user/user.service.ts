@@ -21,6 +21,14 @@ class UserService {
         return this.createCreature(monsterDetails);
     }
 
+    public async createCharacter(characterData: CreateCreatureData): Promise<Creature> {
+        if (characterData.type !== ECreatureType.CHARACTER) {
+            throw new Error('Could not create character because type was not of character');
+        }
+
+        return this.createCreature(characterData);
+    }
+
     public async createCreature(creatureDetails: CreateCreatureData): Promise<Creature> {
         const creatureResults: CreateCreatureResults = await this._userRepository.createCreature(creatureDetails);
 
@@ -118,34 +126,6 @@ class UserService {
 
         return creature;
     }
-
-    /*
-    public async getIndex(): Promise<User[]> {
-        const result = await pool.query("SELECT * FROM users");
-        const users: User[] = result.rows;
-        return users;
-    }
-
-    public async createUser(): Promise<void> {
-
-    }
-
-    public async getUserById(): Promise<void> {
-
-    }
-
-    public async updateUser(): Promise<void> {
-
-    }
-
-    public async deleteUser(): Promise<void> {
-
-    }
-
-    public async createUserTransaction(): Promise<void> {
-
-    }
-    */
 }
 
 export default UserService;
