@@ -1,5 +1,5 @@
 import pool from "../../db";
-import { Consumable, CreateCreatureData, CreateCreatureResults, Creature, CreatureProperties, CreatureType, Currency, EAbilities, EClass, ECreatureType, EEquipment, Equipment, ERace, Inventory } from "./user.schema"
+import { Consumable, CreateCreatureData, CreateCreatureResults, Creature, CreatureProperties, CreatureType, Currency, EAbilities, EClass, ECreatureType, EEquipment, Equipment, ERace, GetCreatureRow, Inventory, UpdateCreatureData } from "./user.schema"
 
 /**
  * Handles all db operations on the User table.
@@ -49,7 +49,7 @@ class UserRepository {
         return results;
     }
 
-    public async getCreatures(type?: ECreatureType): Promise<Creature[]> {
+    public async getCreatures(ids?: number[], type?: ECreatureType): Promise<GetCreatureRow[]> {
         let getCreaturesQuery =
             'SELECT * FROM creatures AS c \
              LEFT JOIN inventories AS i ON c.inventory_id = i.id \
@@ -58,108 +58,101 @@ class UserRepository {
                 SELECT crp.id, crp.lvl, crp.xp, crp.hp, crp.abilities FROM creature_properties AS crp \
              ) cp ON c.creature_properties_id = cp.id';
 
-        // TODO: get list of creatures in game instance
+        // TODO: filter list of creatures in game instance
 
-        const creatures: Creature[] = [];
         let getCreaturesValues = [];
 
+        if ((ids?.length ?? 0) > 0) {
+            getCreaturesQuery += ' WHERE c.id = ANY ($1::int[])';
+            getCreaturesValues.push(ids);
+        }
+
         if (type) {
-            getCreaturesQuery += ' WHERE creature_type = $1';
+            getCreaturesQuery += ` ${getCreaturesValues.length === 0 ? 'WHERE' : 'AND'} c.creature_type = ${getCreaturesValues.length === 0  ? '$1' : '$2'}`;
             getCreaturesValues.push(type);
         }
 
-        let creatureResults = (await pool.query(getCreaturesQuery, getCreaturesValues)).rows;
+        let creatureRows = (await pool.query(getCreaturesQuery, getCreaturesValues)).rows;
 
-        // TODO: all this logic should be in the service
-        // Get the equipped and inventory items
-        for (let i = 0; i < creatureResults.length; ++i) {
-            const creatureResult = creatureResults[i];
+        console.log(`creatureRows: ${JSON.stringify(creatureRows)}`);
 
-            const creature: Creature = {
-                id: creatureResult.id,
-                name: creatureResult.creature_name,
-                creature_type: creatureResult.creature_type,
-                properties: {
-                    id: creatureResult.creature_properties_id,
-                    lvl: creatureResult.lvl,
-                    xp: creatureResult.xp,
-                    hp: creatureResult.hp,
-                    abilities: creatureResult.abilities
-                },
-                type: {
-                    id: creatureResult.creature_type_id,
-                    class: creatureResult.class,
-                    race: creatureResult.race,
-                    c_type: creatureResult.c_type
-                },
-                inventory: {
-                    id: creatureResult.inventory_id,
-                    equipment_capacity: creatureResult.equipment_capacity,
-                    consumables_capacity: creatureResult.consumables_capacity,
-                } as Inventory,
-            } as Creature;
+        return creatureRows;
+    }
 
-            // TODO: test all of these
-            const [equipped, equipment, consumables, currencies] = await Promise.all([
-                this.getEquipment(creatureResult.equipped),
-                this.getEquipment(creatureResult.equipment_ids),
-                this.getConsumables(creatureResult.consumable_ids),
-                this.getCurrencies(creatureResult.currency_ids)
-            ])
+    public async getCreature(id: number, type: ECreatureType): Promise<GetCreatureRow> {
+        return (await this.getCreatures([id], type))[0];
+    }
 
-            creature.equipped = equipped;
-            creature.inventory.equipment = equipment;
-            creature.inventory.consumables = consumables;
-            creature.inventory.currencies = currencies;
+    public async deleteCreature(id: number, type: ECreatureType): Promise<boolean> {
+        const creatureRow = (await pool.query('SELECT * FROM creatures WHERE id = $1', [id])).rows[0];
 
-            creatures.push(creature);
+        if (!creatureRow) {
+            console.warn(`Could not update creature ${id} because it could not be found.`);
+            return false;
         }
 
-        console.log(`creature: ${JSON.stringify(creatures[0])}`);
+        if (creatureRow.creature_type !== type) {
+            throw new Error(`Could not delete creature ${id} because creature type ${creatureRow.creature_type} did not match ${type}`);
+        }
 
-        return creatures;
+        const result = await pool.query('DELETE FROM creatures WHERE id = $1', [id]);
+
+        return (result?.rowCount ?? 0) > 1;
     }
 
-    public async getCreature(id: string): Promise<Creature[]> {
-        const result = await pool.query('SELECT * FROM creatures WHERE id = $1', [id]); // TODO: filter out non-monsters and JOIN a bunch of tables
-        const monsters: Creature[] = result.rows;
+    /**
+     * This update does a full replace for a creature and all of its components.
+     */
+    public async updateCreature(id: number, creatureData: UpdateCreatureData): Promise<boolean> {
+        const creatureRow = (await pool.query('SELECT * FROM creatures WHERE id = $1', [id])).rows[0];
 
-        return monsters; // temp
-    }
+        if (!creatureRow) {
+            throw new Error(`Could not update creature ${id} because it could not be found.`);
+        }
 
-    public async updateCreature(creatureData: CreateCreatureData): Promise<Creature[]> {
-        return [];
-        // TODO: CreateCreatureData can use UpdateCreatureData with Omit<>
-        // TODO: for each 'object' in creatureData, perform an update on that table (need to get the id from the main creature object first)
-        /*
-        const createAbilitiesQuery = 'INSERT INTO abilities (strength, dexterity, constitution, intelligence, wisdom, charisma) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *'
-        const createCreaturePropertiesQuery = 'INSERT INTO creature_properties (lvl, xp, hp, abilities_id) VALUES ($1, $2, $3, $4) RETURNING *';
-        const createCreatureTypeQuery = 'INSERT INTO creature_types (class, race, creature_type) VALUES ($1, $2, $3) RETURNING *';
-        const createInventoryQuery = 'INSERT INTO inventories (capacity, item_ids, currency_ids) VALUES ($1, $2, $3) RETURNING *';
-        const createCreatureQuery = 'INSERT INTO creatures (creature_name, creature_properties_id, creature_type_id, inventory_id, equipped_ids) VALUES ($1, $2, $3, $4, $5) RETURNING *';
-
-        const equippedIds: number[] = new Array(EEquipment.SIZE).fill(null);
-        const abilities: number[] = creatureData.abilities;
-
-
-        let results: CreateCreatureResults;
         const connection = await pool.connect();
         try { 
             await connection.query('BEGIN');
-            const abilitiesResults = await pool.query(createAbilitiesQuery, [abilities[EAbilities.STRENGTH], abilities[EAbilities.DEXTERITY], abilities[EAbilities.CONSTITUTION], abilities[EAbilities.INTELLIGENCE], abilities[EAbilities.WISDOM], abilities[EAbilities.CHARISMA]]);
-            const propertiesResults = await pool.query(createCreaturePropertiesQuery, [1, 0, creatureData.hp, abilitiesResults.rows[0].id]);
-            const typeResults = await pool.query(createCreatureTypeQuery, [creatureData.class, creatureData.race, creatureData.type]);
-            const inventoryResults = await pool.query(createInventoryQuery, [creatureData.inventory_capacity, [], []]);
-            const creatureResults = await pool.query(createCreatureQuery, [creatureData.name, propertiesResults.rows[0].id, typeResults.rows[0].id, inventoryResults.rows[0].id, equippedIds]);
 
-            results = {
-                abilities,
-                properties: propertiesResults.rows[0],
-                type: typeResults.rows[0],
-                inventory: inventoryResults.rows[0],
-                creature: creatureResults.rows[0],
-                equipped: new Array(EEquipment.SIZE).fill(null)
-            };
+            let updateCreatureQuery = 'UPDATE creatures SET';
+            const updateCreatureValues = [];
+            let index = 1;
+
+            const equipped_ids: number[] = creatureData.equipped.map((equipment) => equipment?.id ?? null);
+            updateCreatureQuery += ` equipped_ids = $${index++}`;
+            updateCreatureValues.push(equipped_ids);
+
+            if (creatureData.creature_name !== creatureRow.creature_name) {
+                updateCreatureQuery += `, creature_name = $${index++}`;
+                updateCreatureValues.push(creatureData.creature_name);
+            }
+            if (creatureData.creature_type !== creatureRow.creature_type) {
+                updateCreatureQuery += `, creature_type = $${index++}`;
+                updateCreatureValues.push(creatureData.creature_type);
+            }
+            if (creatureData.properties.id !== creatureRow.creature_properties_id) {
+                updateCreatureQuery += `, creature_properties_id = $${index++}`;
+                updateCreatureValues.push(creatureData.properties.id);
+            }
+            if (creatureData.type.id !== creatureRow.creature_type_id) {
+                updateCreatureQuery += `, creature_type_id = $${index++}`;
+                updateCreatureValues.push(creatureData.type.id);
+            }
+            if (creatureData.inventory.id !== creatureRow.inventory_type_id) {
+                updateCreatureQuery += `, inventory_id = $${index++}`;
+                updateCreatureValues.push(creatureData.inventory.id);
+            }
+
+            updateCreatureQuery += ` WHERE id = $${index++} RETURNING *`;
+            updateCreatureValues.push(id);
+
+            const updatedCreatureRow = (await pool.query(updateCreatureQuery, updateCreatureValues)).rows[0];
+            console.log(`Updated creature row to ${updatedCreatureRow}`);
+
+            // TODO: the 3 following need to use the connection for rollback purposes
+            await this.updateCreatureProperties(creatureData.properties);
+            await this.updateCreatureType(creatureData.type);
+            await this.updateInventory(creatureData.inventory);
 
             await connection.query('COMMIT');
         } catch (e) {
@@ -168,9 +161,123 @@ class UserRepository {
         } finally {
             await connection.release();
         }
+        
+        return true;
+    }
 
-        return results;
-        */
+    public async updateCreatureProperties(creatureProperties: CreatureProperties): Promise<boolean> {
+        let getPropertiesQuery = 'SELECT * FROM creature_properties WHERE id = $1';
+        const propertiesRow = (await pool.query(getPropertiesQuery, [creatureProperties.id])).rows[0];
+
+        if (!propertiesRow) {
+            throw new Error(`Could not update creature properties ${creatureProperties.id} because it could not be found.`);
+        }
+
+        let updatePropertiesQuery = 'UPDATE creature_properties SET';
+        const updatePropertiesValues = [];
+        let index = 1;
+
+        updatePropertiesQuery += ` abilities = $${index++}`;
+        updatePropertiesValues.push(creatureProperties.abilities);
+
+        if (creatureProperties.lvl !== propertiesRow.lvl) {
+            updatePropertiesQuery += `, lvl = $${index++}`;
+            updatePropertiesValues.push(creatureProperties.lvl);
+        }
+        if (creatureProperties.xp !== propertiesRow.xp) {
+            updatePropertiesQuery += `, xp = $${index++}`;
+            updatePropertiesValues.push(creatureProperties.xp);
+        }
+        if (creatureProperties.hp !== propertiesRow.hp) {
+            updatePropertiesQuery += `, hp = $${index++}`;
+            updatePropertiesValues.push(creatureProperties.hp);
+        }
+
+        updatePropertiesQuery += ` WHERE id = $${index++} RETURNING *`;
+        updatePropertiesValues.push(creatureProperties.id);
+
+        const updatedPropertiesRow = (await pool.query(updatePropertiesQuery, updatePropertiesValues)).rows[0];
+
+        console.log(`Updated properties row to: ${JSON.stringify(updatedPropertiesRow)}`);
+
+        return true;
+    }
+
+    public async updateCreatureType(creatureType: CreatureType): Promise<boolean> {
+        let getTypeQuery = 'SELECT * FROM creature_types WHERE id = $1';
+        const typeRow = (await pool.query(getTypeQuery, [creatureType.id])).rows[0];
+
+        if (!typeRow) {
+            throw new Error(`Could not update creature type ${creatureType.id} because it could not be found.`);
+        }
+
+        let updateTypeQuery = 'UPDATE creature_types SET';
+        const updateTypeValues = [];
+        let index = 1;
+
+        updateTypeQuery += ` class = $${index++}`;
+        updateTypeValues.push(creatureType.class);
+
+        if (creatureType.race !== typeRow.race) {
+            updateTypeQuery += `, race = $${index++}`;
+            updateTypeValues.push(creatureType.race);
+        }
+        if (creatureType.c_type !== typeRow.c_type) {
+            updateTypeQuery += `, c_type = $${index++}`;
+            updateTypeValues.push(creatureType.c_type);
+        }
+
+        updateTypeQuery += ` WHERE id = $${index++} RETURNING *`;
+        updateTypeValues.push(creatureType.id);
+
+        const updatedTypeRow = (await pool.query(updateTypeQuery, updateTypeValues)).rows[0];
+
+        console.log(`Updated type row to: ${JSON.stringify(updatedTypeRow)}`);
+
+        return true;
+    }
+
+    public async updateInventory(inventoryData: Inventory): Promise<boolean> {
+        let getInventoryQuery = 'SELECT * FROM inventories WHERE id = $1';
+        const inventoryRow = (await pool.query(getInventoryQuery, [inventoryData.id])).rows[0];
+
+        if (!inventoryRow) {
+            throw new Error(`Could not update creature inventory ${inventoryData.id} because it could not be found.`);
+        }
+
+        let updateInventoryQuery = 'UPDATE inventories SET';
+        const updateInventoryValues = [];
+        let index = 1;
+
+        const equipment_ids: number[] = inventoryData.equipment.map((equipment) => equipment.id);
+        updateInventoryQuery += ` equipment_ids = $${index++}`;
+        updateInventoryValues.push(equipment_ids);
+
+        const consumable_ids: number[] = inventoryData.consumables.map((consumable) => consumable.id);
+        updateInventoryQuery += `, consumable_ids = $${index++}`;
+        updateInventoryValues.push(consumable_ids);
+
+        const currency_ids: number[] = inventoryData.currencies.map((currency) => currency.id);
+        updateInventoryQuery += `, currency_ids = $${index++}`;
+        updateInventoryValues.push(currency_ids);
+
+        if (inventoryData.equipment_capacity !== inventoryRow.equipment_capacity) {
+            updateInventoryQuery += `, equipment_capacity = $${index++}`;
+            updateInventoryValues.push(inventoryData.equipment_capacity);
+        }
+        if (inventoryData.consumables_capacity !== inventoryRow.consumables_capacity) {
+            updateInventoryQuery += `, consumables_capacity = $${index++}`;
+            updateInventoryValues.push(inventoryData.consumables_capacity);
+        }
+
+        updateInventoryQuery += ` WHERE id = $${index++} RETURNING *`;
+        updateInventoryValues.push(inventoryData.id);
+
+        const updatedInventoryRow = (await pool.query(updateInventoryQuery, updateInventoryValues)).rows[0];
+
+        console.log(`Updated inventory row to: ${JSON.stringify(updatedInventoryRow)}`);
+
+        return true;
     }
 
     public async getEquipment(equipmentIds: number[]): Promise<Equipment[]> {

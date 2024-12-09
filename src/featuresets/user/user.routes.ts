@@ -23,12 +23,13 @@ userRoutes.get("/users", userController.getIndex.bind(userController));
 
 // Admin Routes
 userRoutes.post('/monster', userController.createMonster.bind(userController));
-userRoutes.get('/monster', userController.getMonsters.bind(userController));
-// userRoutes.put('/monster', userController.updateMonster.bind(userController));
-// userRoutes.get('/monster/:id', userController.getMonster.bind(userController));
+userRoutes.put('/monster/:id', userController.updateMonster.bind(userController));
+userRoutes.delete('/monster/:id', userController.deleteMonster.bind(userController));
 
 // Player Routes
 
 // Shared Routes
+userRoutes.get('/monster', userController.getMonsters.bind(userController));
+userRoutes.get('/monster/:id', userController.getMonster.bind(userController));
 
 export default userRoutes;

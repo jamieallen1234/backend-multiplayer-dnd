@@ -81,7 +81,7 @@ export enum ECurrency {
 /* An instance of a creature, which includes characters, monsters and npc's */
 export type Creature = {
     id: number,
-    name: string,
+    creature_name: string,
     creature_type: ECreatureType,
     properties: CreatureProperties,
     type: CreatureType,
@@ -231,3 +231,26 @@ export type GetCreatureResults = {
     creature: Creature,
     equipped: Equipment[]
 };
+
+export type GetCreatureRow = {
+    id: number,
+    creature_name: string,
+    creature_type: ECreatureType,
+    creature_properties_id: number,
+    lvl: number,
+    xp: number,
+    hp: number,
+    abilities: number[],
+    creature_type_id: number,
+    class: EClass,
+    race: ERace,
+    inventory_id: number,
+    equipment_capacity: number,
+    consumables_capacity: number,
+    equipped: number[],
+    equipment_ids: number[],
+    consumable_ids: number[],
+    currency_ids: number[]
+};
+
+export type UpdateCreatureData = Omit<Creature, 'id'>;
