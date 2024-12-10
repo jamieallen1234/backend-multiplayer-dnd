@@ -1,5 +1,6 @@
 import pool from "../../db";
-import { Consumable, CreateCreatureData, CreateCreatureResults, Creature, CreatureProperties, CreatureType, Currency, EAbilities, EClass, ECreatureType, EEquipment, Equipment, ERace, GetCreatureRow, Inventory, UpdateCreatureData } from "./user.schema"
+import { BadRequestError } from "../../middleware/errors";
+import { Consumable, CreateCreatureData, CreateCreatureResults, Creature, CreatureProperties, CreatureType, Currency, DungeonMaster, EAbilities, EClass, ECreatureType, EEquipment, Equipment, ERace, Game, GameMap, GetCreatureRow, Interaction, Inventory, Location, Party, Player, UpdateCreatureData } from "./user.schema"
 
 /**
  * Handles all db operations on the User table.
@@ -92,7 +93,7 @@ class UserRepository {
         }
 
         if (creatureRow.creature_type !== type) {
-            throw new Error(`Could not delete creature ${id} because creature type ${creatureRow.creature_type} did not match ${type}`);
+            throw new BadRequestError({ message: `Could not delete creature ${id} because creature type ${creatureRow.creature_type} did not match ${type}` });
         }
 
         const result = await pool.query('DELETE FROM creatures WHERE id = $1', [id]);
@@ -107,7 +108,7 @@ class UserRepository {
         const creatureRow = (await pool.query('SELECT * FROM creatures WHERE id = $1', [id])).rows[0];
 
         if (!creatureRow) {
-            throw new Error(`Could not update creature ${id} because it could not be found.`);
+            throw new BadRequestError({ message: `Could not update creature ${id} because it could not be found.` });
         }
 
         const connection = await pool.connect();
@@ -170,7 +171,7 @@ class UserRepository {
         const propertiesRow = (await pool.query(getPropertiesQuery, [creatureProperties.id])).rows[0];
 
         if (!propertiesRow) {
-            throw new Error(`Could not update creature properties ${creatureProperties.id} because it could not be found.`);
+            throw new BadRequestError({ message: `Could not update creature properties ${creatureProperties.id} because it could not be found.` });
         }
 
         let updatePropertiesQuery = 'UPDATE creature_properties SET';
@@ -208,7 +209,7 @@ class UserRepository {
         const typeRow = (await pool.query(getTypeQuery, [creatureType.id])).rows[0];
 
         if (!typeRow) {
-            throw new Error(`Could not update creature type ${creatureType.id} because it could not be found.`);
+            throw new BadRequestError({ message: `Could not update creature type ${creatureType.id} because it could not be found.` });
         }
 
         let updateTypeQuery = 'UPDATE creature_types SET';
@@ -242,7 +243,7 @@ class UserRepository {
         const inventoryRow = (await pool.query(getInventoryQuery, [inventoryData.id])).rows[0];
 
         if (!inventoryRow) {
-            throw new Error(`Could not update creature inventory ${inventoryData.id} because it could not be found.`);
+            throw new BadRequestError({ message: `Could not update creature inventory ${inventoryData.id} because it could not be found.` });
         }
 
         let updateInventoryQuery = 'UPDATE inventories SET';
@@ -347,33 +348,78 @@ class UserRepository {
         return currencies;
     }
 
-    /*
-    public async getIndex(): Promise<User[]> {
-        const result = await pool.query("SELECT * FROM users");
-        const users: User[] = result.rows;
-        return users;
-    }
+    public async createGameMap(runRows: number, numColumns: number, interactions: Map<number, Map<number, Interaction[]>>): Promise<GameMap> {
+        const createMapQuery = 'INSERT INTO game_map (num_rows, num_cols, interactions) VALUES ($1, $2, $3) RETURNING *';
+        
+        const gameMapRow = (await pool.query(createMapQuery, [runRows, numColumns, interactions])).rows[0];
 
-    public async createUser(): Promise<void> {
+        return {
+            id: gameMapRow.id,
+            num_rows: gameMapRow.num_rows,
+            num_cols: gameMapRow.num_cols,
+            interactions
+        };
+    };
 
-    }
+    public async createGame(gameMap: GameMap, party: Party, dm?: DungeonMaster): Promise<Game> {
+        let createGameQuery = `INSERT INTO game (party_ids, map_id${dm ? ', dm_id' : ''}) VALUES ($1, $2${dm ? ', $3' : ''}) RETURNING *`;
+        const party_ids: number[] = party.players.map((player) => player.id);
+        const createGameValues = [party_ids, gameMap.id];
 
-    public async getUserById(): Promise<void> {
+        if (dm) {
+            createGameValues.push(dm.id);
+        }
 
-    }
+        const gameRow = (await pool.query(createGameQuery, createGameValues)).rows[0];
 
-    public async updateUser(): Promise<void> {
+        return {
+            id: gameRow.id,
+            party,
+            dm,
+            map: gameMap
+        };
+    };
 
-    }
+    public async createParty(players: Player[], location: Location): Promise<Party> {
+        const createPartyQuery = 'INSERT INTO party (player_ids, party_location) VALUES ($1, $2) RETURNING *';
+        const player_ids: number[] = players.map((player) => player.id);
 
-    public async deleteUser(): Promise<void> {
+        const partyRow = (await pool.query(createPartyQuery, [player_ids, [location.x, location.y]])).rows[0];
 
-    }
+        return {
+            id: partyRow.id,
+            players,
+            location,
+        };
+    };
 
-    public async createUserTransaction(): Promise<void> {
+    public async createPlayer(name: string, character?: Creature): Promise<Player> {
+        const createPlayerQuery = `INSERT INTO player (player_name, ${character ? ', character_id' : ''} VALUES ($1,${character ? ', $2' : ''}) RETURNING *`;
+        const createPlayerValues: any[] = [name];
 
-    }
-    */
+        if (character) {
+            createPlayerValues.push(character.id);
+        }
+
+        const playerRow = (await pool.query(createPlayerQuery, createPlayerValues)).rows[0];
+
+        return {
+            id: playerRow.id,
+            name: playerRow.name,
+            character,
+        };
+    };
+
+    public async createDungeonMaster(name: string): Promise<DungeonMaster> {
+        const createDungeonMasterQuery = 'INSERT INTO dunegeon_master (dm_name) VALUES ($1) RETURNING *';
+
+        const dmRow = (await pool.query(createDungeonMasterQuery, [name])).rows[0];
+
+        return {
+            id: dmRow.id,
+            name: dmRow.name,
+        };
+    };
 }
 
 export default UserRepository;

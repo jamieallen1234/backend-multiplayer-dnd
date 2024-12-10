@@ -1,6 +1,7 @@
 import pool from "../../db";
+import { BadRequestError } from "../../middleware/errors";
 import UserRepository from "./user.repository";
-import { CreateCreatureData, CreateCreatureResults, Creature, ECreatureType, GetCreatureRow, Inventory, UpdateCreatureData } from "./user.schema";
+import { CreateCreatureData, CreateCreatureResults, CreateGameData, Creature, ECreatureType, Game, GameMap, GetCreatureRow, Interaction, Inventory, Location, Party, Player, UpdateCreatureData } from "./user.schema";
 
 /**
  * Handles all db operations on the User table.
@@ -15,7 +16,7 @@ class UserService {
 
     public async createMonster(monsterDetails: CreateCreatureData): Promise<Creature> {
         if (monsterDetails.type !== ECreatureType.MONSTER) {
-            throw new Error('Could not create monster because type was not of monster');
+            throw new BadRequestError({ message: 'Could not create monster because type was not of monster' });
         }
 
         return this.createCreature(monsterDetails);
@@ -23,7 +24,7 @@ class UserService {
 
     public async createCharacter(characterData: CreateCreatureData): Promise<Creature> {
         if (characterData.type !== ECreatureType.CHARACTER) {
-            throw new Error('Could not create character because type was not of character');
+            throw new BadRequestError({ message: 'Could not create character because type was not of character' });
         }
 
         return this.createCreature(characterData);
@@ -37,11 +38,11 @@ class UserService {
 
     public async updateCreature(creatureId: number, creatureData: UpdateCreatureData): Promise<boolean> {
         if (!creatureData.properties?.id) {
-            throw new Error(`Could not update creature ${creatureId} because properties is missing`);
+            throw new BadRequestError({ message: `Could not update creature ${creatureId} because properties is missing` });
         } else if (!creatureData.type?.id) {
-            throw new Error(`Could not update creature ${creatureId} because type is missing`);
+            throw new BadRequestError({ message: `Could not update creature ${creatureId} because type is missing` });
         } else if (!creatureData.inventory?.id) {
-            throw new Error(`Could not update creature ${creatureId} because inventory is missing`);
+            throw new BadRequestError({ message: `Could not update creature ${creatureId} because inventory is missing` });
         }
         
         const updated = await this._userRepository.updateCreature(creatureId, creatureData);
@@ -125,6 +126,39 @@ class UserService {
         console.log(`Mapped creature: ${JSON.stringify(creature)}`);
 
         return creature;
+    }
+
+    public async createGame(gameData: CreateGameData): Promise<Game> {
+        // TODO: use a transaction
+        const partyLocation: Location = { x: 0, y: 0 }; // temp until replaced with real map data
+        const interactions: Map<number, Map<number, Interaction[]>> = new Map<number, Map<number, Interaction[]>>();
+
+        const players: Player[] = [];
+
+        if (gameData.player) {
+            // TODO: Should a player exist outside the game? -> no, but a user should so use a user_id?
+            let character;
+            if (gameData.player.character_id) {
+                character = await this.getCreature(gameData.player.character_id, ECreatureType.CHARACTER);
+            }
+
+            const player = await this._userRepository.createPlayer(gameData.player.player_name, character);
+            players.push(player);
+        }
+
+        let dm;
+        if (gameData.dm?.admin_id) {
+            dm = await this._userRepository.createDungeonMaster(gameData.dm.dm_name);
+        }
+
+        // TODO: Add random monsters and treasures to the map
+        let party: Party = await this._userRepository.createParty(players, partyLocation);
+
+        const gameMap: GameMap = await this._userRepository.createGameMap(gameData.map.num_rows, gameData.map.num_cols, interactions);
+        
+        const game: Game = await this._userRepository.createGame(gameMap, party, dm);
+
+        return game;
     }
 }
 

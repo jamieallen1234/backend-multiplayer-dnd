@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { checkForAdminToken, checkForSharedToken } from "../../middleware/auth";
 import UserController from "./user.controller";
 import UserRepository from "./user.repository";
 import UserService from "./user.service";
@@ -9,14 +10,14 @@ const userService = new UserService(userRepository);
 const userController = new UserController(userService);
 
 
-/* ADMIN ROUTES */
-userRoutes.post('/monster', userController.createMonster.bind(userController));
-userRoutes.put('/monster/:id', userController.updateMonster.bind(userController));
-userRoutes.delete('/monster/:id', userController.deleteMonster.bind(userController));
+/* ADMIN/DM ROUTES */
+userRoutes.post('/monster', checkForAdminToken, userController.createMonster.bind(userController));
+userRoutes.put('/monster/:id', checkForAdminToken, userController.updateMonster.bind(userController));
+userRoutes.delete('/monster/:id', checkForAdminToken, userController.deleteMonster.bind(userController));
 
-userRoutes.post('/character', userController.createCharacter.bind(userController));
-userRoutes.put('/character/:id', userController.updateCharacter.bind(userController));
-userRoutes.delete('/character/:id', userController.deleteCharacter.bind(userController));
+userRoutes.post('/character', checkForAdminToken, userController.createCharacter.bind(userController));
+userRoutes.put('/character/:id', checkForAdminToken, userController.updateCharacter.bind(userController));
+userRoutes.delete('/character/:id', checkForAdminToken, userController.deleteCharacter.bind(userController));
 
 // userRoutes.post('/npc', userController.createNpc.bind(userController));
 // userRoutes.put('/npc/:id', userController.updateNpc.bind(userController));
@@ -25,11 +26,13 @@ userRoutes.delete('/character/:id', userController.deleteCharacter.bind(userCont
 /* PLAYER ROUTES */
 
 /* SHARED ROUTES */
-userRoutes.get('/monster', userController.getMonsters.bind(userController));
-userRoutes.get('/monster/:id', userController.getMonster.bind(userController));
+userRoutes.get('/monster', checkForSharedToken, userController.getMonsters.bind(userController));
+userRoutes.get('/monster/:id', checkForSharedToken, userController.getMonster.bind(userController));
 
-userRoutes.get('/character', userController.getCharacters.bind(userController));
-userRoutes.get('/character/:id', userController.getCharacter.bind(userController));
+userRoutes.get('/character', checkForSharedToken, userController.getCharacters.bind(userController));
+userRoutes.get('/character/:id', checkForSharedToken, userController.getCharacter.bind(userController));
+
+userRoutes.post('/game', checkForSharedToken, userController.createGame.bind(userController));
 
 // userRoutes.get('/npc', userController.getNpcs.bind(userController));
 // userRoutes.get('/npc/:id', userController.getNpc.bind(userController));

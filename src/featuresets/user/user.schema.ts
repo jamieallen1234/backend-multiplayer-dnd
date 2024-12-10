@@ -1,11 +1,3 @@
-/*
-export type User = {
-    id: string,
-    name: string,
-    email: string
-};
-*/
-
 /**
  * Must be in order or abilities table rows
  */
@@ -49,6 +41,7 @@ export enum ECreatureType {
 export enum EInteractionType {
     MONSTER = 'monster',
     NPC = 'npc',
+    TREASURE = 'treasure'
 };
 
 export enum ECombatantType {
@@ -78,9 +71,19 @@ export enum ECurrency {
     SIZE = 2 // must be last
 }
 
-/* An instance of a creature, which includes characters, monsters and npc's */
-export type Creature = {
+export type Location = {
+    x: number,
+    y: number
+}
+
+export type Interaction = {
     id: number,
+    interaction_type?: EInteractionType,
+    location?: Location,
+}
+
+/* An instance of a creature, which includes characters, monsters and npc's */
+export type Creature = Interaction & {
     creature_name: string,
     creature_type: ECreatureType,
     properties: CreatureProperties,
@@ -132,7 +135,7 @@ export type Consumable = Item & {
 };
 
 export type Inventory = {
-    id: string,
+    id: number,
     equipment_capacity: number,
     consumables_capacity: number,
     equipment: Equipment[];
@@ -141,26 +144,29 @@ export type Inventory = {
 };
 
 export type Player = {
-    id: string,
+    id: number,
     name: string,
-    character: Creature
+    character?: Creature
 };
 
 export type Party = {
-    id: string,
+    id: number,
     players: Player[],
     location: Location,
 };
 
 export type DungeonMaster = {
-    id: string,
+    id: number,
     name: string,
 };
 
+/**
+ * The game instance. State is handled by the Game and the GameMap.
+ */
 export type Game = {
-    id: string,
-    party: Party[],
-    dm: DungeonMaster,
+    id: number,
+    party: Party,
+    dm?: DungeonMaster,
     map: GameMap,
     combat?: Combat
 };
@@ -170,37 +176,33 @@ export type Game = {
  * and have only a single map.
  */
 export type GameMap = {
-    id: string,
-    rows: number,
-    cols: number,
-    iteractions: Map<number, Map<number, Interaction[]>>
+    id: number,
+    num_rows: number,
+    num_cols: number,
+    // playerLocation: Location, 
+    interactions: Map<number, Map<number, Interaction[]>>
 };
 
-export type Interaction = {
-    id: string,
-    interactionId: string, // TODO: replace with Monster | NPC
-    type: EInteractionType
-};
-
-export type Treasure = {
-    id: string,
-    location: Location,
+/**
+ * Loot boxes. Can be found by exploring the game map or from special interactions.
+ */
+export type Treasure = Interaction & {
     equipment: Equipment[],
     consumables: Consumable[],
     currencies: Currency[]
+    /* Would be more interesting with random gold dropped within a range */
+    /* Could randomly choose equipment or consumables from within an available pool */
 };
 
 export type Combat = {
-    id: string,
-    monsters: Creature[],
+    id: number,
     combatants: Combatant[] // array should be in order of combat
 };
 
 export type Combatant = {
-    id: string,
-    combatantId: string,
+    id: number,
+    creature: Creature,
     combatantType: ECombatantType
-    // TODO: Can make the object -> combatant: Monster | Character (should do the same for other versions above)
 }
 
 export type CreateCreatureData = {
@@ -251,6 +253,23 @@ export type GetCreatureRow = {
     equipment_ids: number[],
     consumable_ids: number[],
     currency_ids: number[]
+};
+
+export type CreateGameData = {
+    player?: {
+        user_id: number, // set if creator is joining the game as a player
+        character_id?: number, // set if player has an existing character
+        player_name: string,
+    },
+    dm?: {
+        admin_id?: number, // set if the creator is joining the game as a dungeon master
+        dm_name: string
+    },
+    map: {
+        num_rows: number,
+        num_cols: number,
+    }
+    /* Iteractions will be randomly generated as per task description */
 };
 
 export type UpdateCreatureData = Omit<Creature, 'id'>;
