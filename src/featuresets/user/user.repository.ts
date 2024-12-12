@@ -241,7 +241,7 @@ class UserRepository {
         const consumable_ids: number[] = inventoryData.consumables.map((consumable) => consumable.id);
         const currency_ids: number[] = inventoryData.currencies.map((currency) => currency.id);
 
-        const updateInventoryQuery = 'UPDATE inventories SET equipment_ids = $1, consumable_ids = $2, currency_ids = $3, equipment_capacity = $4 consumables_capacity = $5 WHERE id = $6 RETURNING *';
+        const updateInventoryQuery = 'UPDATE inventories SET equipment_ids = $1, consumable_ids = $2, currency_ids = $3, equipment_capacity = $4, consumables_capacity = $5 WHERE id = $6 RETURNING *';
         const updateInventoryValues = [equipment_ids, consumable_ids, currency_ids, inventoryData.equipment_capacity, inventoryData.consumables_capacity, inventoryData.id];
 
         const updatedInventoryRow = (await pool.query(updateInventoryQuery, updateInventoryValues)).rows[0];
@@ -571,13 +571,13 @@ class UserRepository {
     }
 
     /* Gets a treasure type */
-    public async getTreasureType(id: number): Promise<TreasureType> {
+    public async getTreasureType(id: number): Promise<TreasureType | null> {
         const getTreasureTypeQuery = 'SELECT * FROM treasure_type WHERE id = $1';
         const getTreasureTypeValues = [id];
 
         const treasureTypeRow = (await pool.query(getTreasureTypeQuery, getTreasureTypeValues)).rows[0];
 
-        return this.mapTreasureTypeRowToTreasureType(treasureTypeRow);
+        return treasureTypeRow ? this.mapTreasureTypeRowToTreasureType(treasureTypeRow) : null;
     }
 
     /* Deletes a treasure type */

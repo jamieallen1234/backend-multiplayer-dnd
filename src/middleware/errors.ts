@@ -66,7 +66,7 @@ export class UnauthorizedRequestError extends CustomError {
       this._context = params?.context || {};
   
       // Only because we are extending a built in class
-      Object.setPrototypeOf(this, BadRequestError.prototype);
+      Object.setPrototypeOf(this, UnauthorizedRequestError.prototype);
     }
   
     get errors() {
@@ -95,9 +95,14 @@ export function errorHandler (err: Error, req: Request, res: Response, next: Nex
         }
     
         res.status(statusCode).send({ errors });
+        
+        next(err);
+        return;
       }
     
       // Unhandled errors
       console.error(JSON.stringify(err, null, 2));
       res.status(500).send({ errors: [{ message: "Something went wrong" }] });
+
+      next(err);
 };

@@ -92,9 +92,9 @@ CREATE TABLE IF NOT EXISTS currencies (
 
 CREATE TABLE IF NOT EXISTS player (
     id SERIAL PRIMARY KEY,
-    user_id string NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
     user_name VARCHAR(255) NOT NULL,
-    character_id integer REFERENCES creatures NOT NULL;
+    character_id integer REFERENCES creatures NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS party (
 
 CREATE TABLE IF NOT EXISTS dungeon_master (
     id SERIAL PRIMARY KEY,
-    user_id string NOT NULL,
+    user_id VARCHAR(255) NOT NULL,
     user_name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
@@ -127,6 +127,8 @@ CREATE TABLE IF NOT EXISTS combat (
     id SERIAL PRIMARY KEY,
     combatant_ids integer ARRAY DEFAULT array[]::integer[], /* references combatant id */
     combatant_turn_index NUMERIC(2, 0) NOT NULL DEFAULT 0,
+    fainted_monster_ids integer ARRAY DEFAULT array[]::integer[],
+    fainted_character_ids integer ARRAY DEFAULT array[]::integer[],
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
@@ -137,9 +139,9 @@ CREATE TABLE IF NOT EXISTS treasure_type (
     equipment_ids integer ARRAY DEFAULT array[]::integer[], /* references equipment id */
     consumable_ids integer ARRAY DEFAULT array[]::integer[], /* references consumables id */
     currency_ids integer ARRAY DEFAULT array[]::integer[], /* references currencies id */
-    num_equipment integer ARRAY DEFAULT array[]::integer[] /* [min, max] */
-    num_consumables integer ARRAY DEFAULT array[]::integer[] /* [min, max] */
-    num_currencies integer ARRAY DEFAULT array[]::integer[] /* [min, max] */
+    num_equipment integer ARRAY DEFAULT array[]::integer[], /* [min, max] */
+    num_consumables integer ARRAY DEFAULT array[]::integer[],/* [min, max] */
+    num_currencies integer ARRAY DEFAULT array[]::integer[], /* [min, max] */
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
     /* Should expand this to differentiate between random loot and guarenteed loot, and random loot should be weighted */
@@ -157,7 +159,6 @@ CREATE TABLE IF NOT EXISTS game_map (
     id SERIAL PRIMARY KEY,
     num_rows NUMERIC(7, 0) NOT NULL,
     num_cols NUMERIC(7, 0) NOT NULL,
-    /* player_location ARRAY NOT NULL, /* formatted [row, col] */
     interactions integer ARRAY DEFAULT array[]::integer[], /* formatted [row, col, interaction_id, interaction_type, ...] */
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
@@ -165,8 +166,8 @@ CREATE TABLE IF NOT EXISTS game_map (
 
 CREATE TABLE IF NOT EXISTS game (
     id SERIAL PRIMARY KEY,
-    party_ids integer ARRAY DEFAULT array[]::integer[], /* references party id */
-    dm_id integer,
+    party_id integer REFERENCES party NOT NULL,
+    dm_id integer REFERENCES dungeon_master DEFAULT NULL,
     map_id integer REFERENCES game_map NOT NULL,
     combat_id integer REFERENCES combat DEFAULT NULL,
     active boolean DEFAULT false,

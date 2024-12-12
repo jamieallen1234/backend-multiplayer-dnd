@@ -246,7 +246,7 @@ class UserService {
     public async updateTreasure(id: number, data: UpdateTreasureType): Promise<TreasureType> {
         const existingTreasureType = await this._userRepository.getTreasureType(id);
         if (!existingTreasureType) {
-            throw new BadRequestError({ message: 'Could not update treasure because treasure not found.'});
+            throw new BadRequestError({ message: 'Could not update treasure because treasure was not found.'});
         }
         
         const treasureType = await this._userRepository.updateTreasureType(id, data);
@@ -256,6 +256,10 @@ class UserService {
 
     public async getTreasure(id: number): Promise<TreasureType> {
         const treasureType = await this._userRepository.getTreasureType(id);
+
+        if (!treasureType) {
+            throw new BadRequestError({ message: 'No treasure by that id was found.'});
+        }
 
         return treasureType;
     }
