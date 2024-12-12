@@ -11,6 +11,7 @@ class UserRepository {
         
     }
 
+    /* Create a creature and all of its components */
     public async createCreature(creatureData: CreateCreatureData): Promise<CreateCreatureResults> {
         const createCreaturePropertiesQuery = 'INSERT INTO creature_properties (lvl, xp, hp, abilities) VALUES ($1, $2, $3, $4) RETURNING *';
         const createCreatureTypeQuery = 'INSERT INTO creature_types (class, race, c_type) VALUES ($1, $2, $3) RETURNING *';
@@ -50,6 +51,7 @@ class UserRepository {
         return results;
     }
 
+    /* Get creatures */
     public async getCreatures(ids?: number[], type?: ECreatureType): Promise<Creature[]> {
         let getCreaturesQuery =
             'SELECT * FROM creatures AS c \
@@ -58,8 +60,6 @@ class UserRepository {
              LEFT JOIN ( \
                 SELECT crp.id, crp.lvl, crp.xp, crp.hp, crp.abilities FROM creature_properties AS crp \
              ) cp ON c.creature_properties_id = cp.id';
-
-        // TODO: filter list of creatures in game instance
 
         let getCreaturesValues = [];
 
@@ -162,37 +162,10 @@ class UserRepository {
         try { 
             await connection.query('BEGIN');
 
-            let updateCreatureQuery = 'UPDATE creatures SET';
-            const updateCreatureValues = [];
-            let index = 1;
-
             const equipped_ids: number[] = creatureData.equipped.map((equipment) => equipment?.id ?? null);
-            updateCreatureQuery += ` equipped_ids = $${index++}`;
-            updateCreatureValues.push(equipped_ids);
 
-            if (creatureData.creature_name !== creatureRow.creature_name) {
-                updateCreatureQuery += `, creature_name = $${index++}`;
-                updateCreatureValues.push(creatureData.creature_name);
-            }
-            if (creatureData.creature_type !== creatureRow.creature_type) {
-                updateCreatureQuery += `, creature_type = $${index++}`;
-                updateCreatureValues.push(creatureData.creature_type);
-            }
-            if (creatureData.properties.id !== creatureRow.creature_properties_id) {
-                updateCreatureQuery += `, creature_properties_id = $${index++}`;
-                updateCreatureValues.push(creatureData.properties.id);
-            }
-            if (creatureData.type.id !== creatureRow.creature_type_id) {
-                updateCreatureQuery += `, creature_type_id = $${index++}`;
-                updateCreatureValues.push(creatureData.type.id);
-            }
-            if (creatureData.inventory.id !== creatureRow.inventory_type_id) {
-                updateCreatureQuery += `, inventory_id = $${index++}`;
-                updateCreatureValues.push(creatureData.inventory.id);
-            }
-
-            updateCreatureQuery += ` WHERE id = $${index++} RETURNING *`;
-            updateCreatureValues.push(id);
+            const updateCreatureQuery = 'UPDATE creatures SET equipped_ids = $1, creature_name = $2, creature_type = $3, creature_properties_id = $4, creature_type_id = $5, inventory_id = $6 WHERE id = $7 RETURNING *';
+            const updateCreatureValues = [equipped_ids, creatureData.creature_name, creatureData.creature_type, creatureData.properties.id, creatureData.type.id, creatureData.inventory.id, id];
 
             const updatedCreatureRow = (await pool.query(updateCreatureQuery, updateCreatureValues)).rows[0];
             console.log(`Updated creature row to ${updatedCreatureRow}`);
@@ -221,28 +194,8 @@ class UserRepository {
             throw new BadRequestError({ message: `Could not update creature properties ${creatureProperties.id} because it could not be found.` });
         }
 
-        let updatePropertiesQuery = 'UPDATE creature_properties SET';
-        const updatePropertiesValues = [];
-        let index = 1;
-
-        updatePropertiesQuery += ` abilities = $${index++}`;
-        updatePropertiesValues.push(creatureProperties.abilities);
-
-        if (creatureProperties.lvl !== propertiesRow.lvl) {
-            updatePropertiesQuery += `, lvl = $${index++}`;
-            updatePropertiesValues.push(creatureProperties.lvl);
-        }
-        if (creatureProperties.xp !== propertiesRow.xp) {
-            updatePropertiesQuery += `, xp = $${index++}`;
-            updatePropertiesValues.push(creatureProperties.xp);
-        }
-        if (creatureProperties.hp !== propertiesRow.hp) {
-            updatePropertiesQuery += `, hp = $${index++}`;
-            updatePropertiesValues.push(creatureProperties.hp);
-        }
-
-        updatePropertiesQuery += ` WHERE id = $${index++} RETURNING *`;
-        updatePropertiesValues.push(creatureProperties.id);
+        const updatePropertiesQuery = 'UPDATE creature_properties SET abilities = $1, lvl = $2, xp = $3, hp = $4 WHERE id = $5 RETURNING *';
+        const updatePropertiesValues = [creatureProperties.abilities, creatureProperties.lvl, creatureProperties.xp, creatureProperties.hp, creatureProperties.id];
 
         const updatedPropertiesRow = (await pool.query(updatePropertiesQuery, updatePropertiesValues)).rows[0];
 
@@ -259,24 +212,8 @@ class UserRepository {
             throw new BadRequestError({ message: `Could not update creature type ${creatureType.id} because it could not be found.` });
         }
 
-        let updateTypeQuery = 'UPDATE creature_types SET';
-        const updateTypeValues = [];
-        let index = 1;
-
-        updateTypeQuery += ` class = $${index++}`;
-        updateTypeValues.push(creatureType.class);
-
-        if (creatureType.race !== typeRow.race) {
-            updateTypeQuery += `, race = $${index++}`;
-            updateTypeValues.push(creatureType.race);
-        }
-        if (creatureType.c_type !== typeRow.c_type) {
-            updateTypeQuery += `, c_type = $${index++}`;
-            updateTypeValues.push(creatureType.c_type);
-        }
-
-        updateTypeQuery += ` WHERE id = $${index++} RETURNING *`;
-        updateTypeValues.push(creatureType.id);
+        const updateTypeQuery = 'UPDATE creature_types SET class = $1, race = $2, c_type = $3 WHERE id = $4 RETURNING *';
+        const updateTypeValues = [creatureType.class, creatureType.race, creatureType.c_type, creatureType.id];
 
         const updatedTypeRow = (await pool.query(updateTypeQuery, updateTypeValues)).rows[0];
 
@@ -293,33 +230,12 @@ class UserRepository {
             throw new BadRequestError({ message: `Could not update creature inventory ${inventoryData.id} because it could not be found.` });
         }
 
-        let updateInventoryQuery = 'UPDATE inventories SET';
-        const updateInventoryValues = [];
-        let index = 1;
-
         const equipment_ids: number[] = inventoryData.equipment.map((equipment) => equipment.id);
-        updateInventoryQuery += ` equipment_ids = $${index++}`;
-        updateInventoryValues.push(equipment_ids);
-
         const consumable_ids: number[] = inventoryData.consumables.map((consumable) => consumable.id);
-        updateInventoryQuery += `, consumable_ids = $${index++}`;
-        updateInventoryValues.push(consumable_ids);
-
         const currency_ids: number[] = inventoryData.currencies.map((currency) => currency.id);
-        updateInventoryQuery += `, currency_ids = $${index++}`;
-        updateInventoryValues.push(currency_ids);
 
-        if (inventoryData.equipment_capacity !== inventoryRow.equipment_capacity) {
-            updateInventoryQuery += `, equipment_capacity = $${index++}`;
-            updateInventoryValues.push(inventoryData.equipment_capacity);
-        }
-        if (inventoryData.consumables_capacity !== inventoryRow.consumables_capacity) {
-            updateInventoryQuery += `, consumables_capacity = $${index++}`;
-            updateInventoryValues.push(inventoryData.consumables_capacity);
-        }
-
-        updateInventoryQuery += ` WHERE id = $${index++} RETURNING *`;
-        updateInventoryValues.push(inventoryData.id);
+        const updateInventoryQuery = 'UPDATE inventories SET equipment_ids = $1, consumable_ids = $2, currency_ids = $3, equipment_capacity = $4 consumables_capacity = $5 WHERE id = $6 RETURNING *';
+        const updateInventoryValues = [equipment_ids, consumable_ids, currency_ids, inventoryData.equipment_capacity, inventoryData.consumables_capacity, inventoryData.id];
 
         const updatedInventoryRow = (await pool.query(updateInventoryQuery, updateInventoryValues)).rows[0];
 
@@ -489,29 +405,6 @@ class UserRepository {
 
         return players;
     }
-
-    /*
-    public async getInteractions(interactionsData: IteractionData[]): Promise<Map<number, Map<number, Interaction[]>>> {
-        const interactions: Map<number, Map<number, Interaction[]>> = new Map<number, Map<number, Interaction[]>>();
-
-        // TODO: should batch these queries for performance
-        for (let i = 0; i < interactionsData.length; ++i) {
-            const data = interactionsData[i];
-            let iteraction;
-            switch(data.interaction_type) {
-                case EInteractionType.MONSTER:
-                    break;
-                case EInteractionType.TREASURE:
-                    break;
-                // case EInteractionType.NPC:
-                default:
-                    break;
-            }
-        }
-
-        return interactions;
-    }
-    */
 
     public getInteractions(interactions: number[]): Map<number, Map<number, Interaction[]>> {
         const interactionsMap = new Map<number, Map<number, Interaction[]>>();
