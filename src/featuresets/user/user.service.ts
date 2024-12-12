@@ -419,17 +419,16 @@ class UserService {
         const game = await this._userRepository.getGame(gameId);
         const players = game.party.players;
         const numPlayers = players.length;
-
-        if (numPlayers > 0) {
-            for (let i = 0; i < numPlayers; ++i) {
-                if (players[i].user_id === userId) {
-                    // User already joined the game as a player
-                    return true;
-                }
-            }
-
-            if (numPlayers >= MAX_PLAYERS) {
-                throw new BadRequestError({ message: 'Could join game as player because the game is full.' });
+        
+        if (numPlayers >= MAX_PLAYERS) {
+            throw new BadRequestError({ message: 'Could join game as player because the game is full.' });
+        }
+        
+        for (let i = 0; i < numPlayers; ++i) {
+            if (players[i].user_id === userId) {
+                // User already joined the game as a player
+                console.log('Player already joined game!');
+                return true;
             }
         }
 
@@ -438,6 +437,8 @@ class UserService {
         const player = await this._userRepository.createPlayer(userId, userName, characterId);
 
         game.party.players.push(player);
+
+        await this._userRepository.updateParty(game.party.id, game.party);
 
         await this._userRepository.updateGame(game.id, game);
 

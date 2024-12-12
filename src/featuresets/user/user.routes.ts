@@ -32,16 +32,16 @@ userRoutes.delete('/treasure/:id', checkForAdminToken, userController.deleteTrea
 userRoutes.put('/treasure/:treasure_id/open/:party_id', checkForAdminToken, userController.openTreasureInstance.bind(userController));
 
 // Game
-userRoutes.patch('/game/:game_id/join/:user_id/dm', checkForUserToken, userController.joinGameAsDungeonMaster.bind(userController));
+userRoutes.patch('/game/:game_id/join/:user_id/dm', checkForAdminToken, userController.joinGameAsDungeonMaster.bind(userController));
 
 // Combat
-userRoutes.post('/game/:game_id/combat', checkForUserToken, userController.beginCombat.bind(userController));
+userRoutes.post('/game/:game_id/combat', checkForAdminToken, userController.beginCombat.bind(userController));
 
 /*************************
 /* USER/PLAYER ROUTES
 /*************************/
 // Game
-userRoutes.patch('/game/:game_id/join/player', checkForUserToken, userController.joinGameAsPlayer.bind(userController));
+userRoutes.patch('/game/:game_id/join/:user_id/player', checkForUserToken, userController.joinGameAsPlayer.bind(userController));
 
 // Party
 userRoutes.patch('/game/:game_id/party/:player_id/move', checkForUserToken, userController.moveParty.bind(userController));
@@ -65,9 +65,9 @@ userRoutes.get('/treasure/:id', checkForSharedToken, userController.getTreasure.
 
 // Game
 userRoutes.post('/game', checkForSharedToken, userController.createGame.bind(userController));
-userRoutes.put('/game/:id', checkForSharedToken, userController.updateGame.bind(userController));
 userRoutes.get('/game/:id', checkForSharedToken, userController.getGame.bind(userController));
 userRoutes.patch('/game/:id/start', checkForSharedToken, userController.startGame.bind(userController));
+userRoutes.put('/game/:id', checkForSharedToken, userController.updateGame.bind(userController)); // Added for the test but safer to use targeted endpoints such as start game
 
 // Lobby
 userRoutes.get('/game/lobby/party', checkForSharedToken, userController.getAvailablePartyList.bind(userController));
