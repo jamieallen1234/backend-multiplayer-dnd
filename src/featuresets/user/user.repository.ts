@@ -75,8 +75,6 @@ class UserRepository {
 
         let creatureRows = (await pool.query(getCreaturesQuery, getCreaturesValues)).rows;
 
-        console.log(`creatureRows: ${JSON.stringify(creatureRows)}`);
-
         const creatures: Creature[] = [];
 
         // Get the equipped and inventory items
@@ -457,15 +455,16 @@ class UserRepository {
             WHERE g.id = ${id}
             `;
         const gameRow = (await pool.query(getGameQuery)).rows[0];
-        const players = await this.getPlayers(gameRow.party.player_ids);
+
+        const players = await this.getPlayers(gameRow.player_ids);
         const interactions: Map<number, Map<number, Interaction[]>> = this.getInteractions(gameRow.interactions);
 
         return {
-            id: gameRow.id,
+            id,
             party: {
                 id: gameRow.party_id,
                 players,
-                location: { row: gameRow.location[0], col: gameRow.location[1] }
+                location: { row: gameRow.party_location[0], col: gameRow.party_location[1] }
             },
             dm : {
                 id: gameRow.dm_id,
@@ -484,7 +483,7 @@ class UserRepository {
 
     public async createParty(players: Player[], location: Location): Promise<Party> {
         const createPartyQuery = 'INSERT INTO party (player_ids, party_location) VALUES ($1, $2) RETURNING *';
-        const player_ids: number[] = players.map((player) => player.id);
+        const player_ids: number[] = players.map((player) => player.id) ?? [];
 
         const partyRow = (await pool.query(createPartyQuery, [player_ids, [location.col, location.row]])).rows[0];
 

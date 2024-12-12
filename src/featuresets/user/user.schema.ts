@@ -84,14 +84,13 @@ export enum EDirection {
 }
 
 export type Location = {
+    row: number,
     col: number,
-    row: number
 }
 
 export type Interaction = {
     id: number,
     interaction_type?: EInteractionType,
-    // location?: Location,
 }
 
 /* An instance of a creature, which includes characters, monsters and npc's */
