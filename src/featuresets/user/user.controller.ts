@@ -1,8 +1,6 @@
 import { Request, Response } from "express";
-import pool from "../../db";
-import { QueryResult } from "pg";
 import UserService from "./user.service";
-import { CreateCreatureData, CreateGameData, ECreatureType, UpdateCreatureData } from "./user.schema";
+import { CreateCreatureData, CreateGameData, ECreatureType, UpdateCreatureData, UpdateGameData } from "./user.schema";
 
 // https://node-postgres.com/features/queries
 class UserController {
@@ -78,6 +76,97 @@ class UserController {
     public async createGame(req: Request, res: Response): Promise<void> {
         const gameData: CreateGameData = req.body.gameData;
         const result = await this.userService.createGame(gameData);
+        
+        res.status(200).json(result);
+    }
+
+    public async updateGame(req: Request, res: Response): Promise<void> {
+        const gameData: UpdateGameData = req.body.gameData;
+        const result = await this.userService.updateGame(Number(req.params.id), gameData);
+        
+        res.status(200).json(result);
+    }
+
+    public async getGame(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.getGame(Number(req.params.id));
+        
+        res.status(200).json(result);
+    }
+
+    public async startGame(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.startGame(Number(req.params.id));
+        
+        res.status(200).json(result);
+    }
+
+    public async getAvailablePartyList(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.getAvailablePartyList();
+        
+        res.status(200).json(result);
+    }
+
+    public async getAvailableDungeonMasterList(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.getAvailableDungeonMasterList();
+        
+        res.status(200).json(result);
+    }
+
+    public async createTreasure(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.createTreasure(req.body.treasureData);
+        
+        res.status(200).json(result);
+    }
+
+    public async getTreasure(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.getTreasure(Number(req.params.id));
+        
+        res.status(200).json(result);
+    }
+
+    public async updateTreasure(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.updateTreasure(Number(req.params.id), req.body.treasureData);
+        
+        res.status(200).json(result);
+    }
+
+    public async deleteTreasure(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.deleteTreasure(Number(req.params.id));
+        
+        res.status(200).json(result);
+    }
+
+    public async openTreasureInstance(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.openTreasureInstance(Number(req.params.treasure_id), Number(req.params.party_id));
+        
+        res.status(200).json(result);
+    }
+
+    public async joinGameAsDungeonMaster(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.joinGameAsDungeonMaster(Number(req.params.game_id), req.params.user_id, req.body.user_name);
+        
+        res.status(200).json(result);
+    }
+
+    public async joinGameAsPlayer(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.joinGameAsPlayer(Number(req.params.game_id), req.params.user_id, req.body.user_name, req.body.character_id);
+        
+        res.status(200).json(result);
+    }
+
+    public async beginCombat(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.beginCombat(Number(req.params.game_id), req.body.location);
+        
+        res.status(200).json(result);
+    }
+
+    public async moveParty(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.moveParty(Number(req.params.game_id), Number(req.params.player_id), req.body.direction);
+        
+        res.status(200).json(result);
+    }
+
+    public async takeCombatTurn(req: Request, res: Response): Promise<void> {
+        const result = await this.userService.takeCombatTurnForCombatant(Number(req.params.game_id), Number(req.params.combat_id), req.body.attacker_combatant_id, req.body.defender_combatant_id);
         
         res.status(200).json(result);
     }

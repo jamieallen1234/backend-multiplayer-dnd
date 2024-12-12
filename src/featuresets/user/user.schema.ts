@@ -1,3 +1,5 @@
+export const MAX_PLAYERS = 4;
+
 /**
  * Must be in order or abilities table rows
  */
@@ -39,9 +41,10 @@ export enum ECreatureType {
 };
 
 export enum EInteractionType {
-    MONSTER = 'monster',
-    NPC = 'npc',
-    TREASURE = 'treasure'
+    MONSTER = 0,
+    NPC = 1,
+    TREASURE = 2,
+    SIZE = 3 // must be last
 };
 
 export enum ECombatantType {
@@ -71,15 +74,22 @@ export enum ECurrency {
     SIZE = 2 // must be last
 }
 
+export enum EDirection {
+    NORTH = 'north',
+    EAST = 'east',
+    SOUTH = 'south',
+    WEST = 'west'
+}
+
 export type Location = {
-    x: number,
-    y: number
+    col: number,
+    row: number
 }
 
 export type Interaction = {
     id: number,
     interaction_type?: EInteractionType,
-    location?: Location,
+    // location?: Location,
 }
 
 /* An instance of a creature, which includes characters, monsters and npc's */
@@ -143,10 +153,21 @@ export type Inventory = {
     currencies: Currency[] // use ECurrency to index into array to get desired currency 
 };
 
+export type InventoryRow = {
+    id: number,
+    equipment_capacity: number,
+    consumables_capacity: number,
+    equipment_ids: number[];
+    consumable_ids: number[],
+    currency_ids: number[]
+};
+
 export type Player = {
     id: number,
-    name: string,
-    character?: Creature
+    user_id: string,
+    user_name: string,
+    character_id: number
+    // character?: Creature
 };
 
 export type Party = {
@@ -155,9 +176,18 @@ export type Party = {
     location: Location,
 };
 
+export type PartyRow = {
+    id: number,
+    player_ids: number[],
+    location_id: number,
+    created_at: string,
+    updated_at: string
+}
+
 export type DungeonMaster = {
     id: number,
-    name: string,
+    user_id: string,
+    user_name: string,
 };
 
 /**
@@ -169,6 +199,7 @@ export type Game = {
     dm?: DungeonMaster,
     map: GameMap,
     combat?: Combat
+    active: boolean
 };
 
 /**
@@ -179,24 +210,52 @@ export type GameMap = {
     id: number,
     num_rows: number,
     num_cols: number,
+    interactions: Map<number, Map<number, Interaction[]>> /* row, col */
     // playerLocation: Location, 
-    interactions: Map<number, Map<number, Interaction[]>>
 };
+
+/* Range is inclusive */
+export type Range = {
+    min: number,
+    max: number
+}
+
+export type TreasureType = {
+    id: number,
+    equipment_ids: number[],
+    consumable_ids: number[],
+    currency_ids: number[],
+    num_equipment: Range,
+    num_consumables: Range,
+    num_currencies: Range
+}
+
+export type TreasureTypeRow = {
+    id: number,
+    equipment_ids: number[],
+    consumable_ids: number[],
+    currency_ids: number[],
+    num_equipment: number[],
+    num_consumables: number[],
+    num_currencies: number[],
+    created_at: number,
+    updated_at: number
+}
 
 /**
  * Loot boxes. Can be found by exploring the game map or from special interactions.
  */
 export type Treasure = Interaction & {
-    equipment: Equipment[],
-    consumables: Consumable[],
-    currencies: Currency[]
-    /* Would be more interesting with random gold dropped within a range */
-    /* Could randomly choose equipment or consumables from within an available pool */
+    treasure_type: TreasureType,
+    opened: boolean,
 };
 
 export type Combat = {
     id: number,
-    combatants: Combatant[] // array should be in order of combat
+    combatantTurnIndex: number,
+    combatants: Combatant[], // array should be in order of combat
+    faintedMonsterIds: number[],
+    faintedCharacterIds: number[]
 };
 
 export type Combatant = {
@@ -257,13 +316,13 @@ export type GetCreatureRow = {
 
 export type CreateGameData = {
     player?: {
-        user_id: number, // set if creator is joining the game as a player
-        character_id?: number, // set if player has an existing character
-        player_name: string,
+        user_id: string, // set if creator is joining the game as a player
+        user_name: string,
+        character_id: number, // user must have a character to play the game
     },
     dm?: {
-        admin_id?: number, // set if the creator is joining the game as a dungeon master
-        dm_name: string
+        user_id: string, // set if the creator is joining the game as a dungeon master
+        user_name: string
     },
     map: {
         num_rows: number,
@@ -272,4 +331,14 @@ export type CreateGameData = {
     /* Iteractions will be randomly generated as per task description */
 };
 
+export type GameInfo = {
+    game_id: number,
+    player_ids: number[];
+    dm_id: number
+}
+
+export type CreateTreasureType = Omit<TreasureType, 'id'>;
+export type UpdateTreasureType = Omit<TreasureType, 'id'>;
 export type UpdateCreatureData = Omit<Creature, 'id'>;
+export type UpdateGameData = Omit<Game, 'id'>;
+export type IteractionData = { row: number, col: number, id: number, interaction_type: EInteractionType };

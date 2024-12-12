@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS dungeon_master (
 CREATE TABLE IF NOT EXISTS combatant (
     id SERIAL PRIMARY KEY,
     creature_id integer REFERENCES creatures NOT NULL,
-    combatantType e_combatant_type NOT NULL,
+    combatant_type e_combatant_type NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
@@ -126,15 +126,29 @@ CREATE TABLE IF NOT EXISTS combatant (
 CREATE TABLE IF NOT EXISTS combat (
     id SERIAL PRIMARY KEY,
     combatant_ids integer ARRAY DEFAULT array[]::integer[], /* references combatant id */
+    combatant_turn_index NUMERIC(2, 0) NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
 
-CREATE TABLE IF NOT EXISTS treasure (
+/* Defines what loot can be found inside of a treasure chest */
+CREATE TABLE IF NOT EXISTS treasure_type (
     id SERIAL PRIMARY KEY,
     equipment_ids integer ARRAY DEFAULT array[]::integer[], /* references equipment id */
     consumable_ids integer ARRAY DEFAULT array[]::integer[], /* references consumables id */
     currency_ids integer ARRAY DEFAULT array[]::integer[], /* references currencies id */
+    num_equipment integer ARRAY DEFAULT array[]::integer[] /* [min, max] */
+    num_consumables integer ARRAY DEFAULT array[]::integer[] /* [min, max] */
+    num_currencies integer ARRAY DEFAULT array[]::integer[] /* [min, max] */
+    created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
+    updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
+    /* Should expand this to differentiate between random loot and guarenteed loot, and random loot should be weighted */
+);
+
+CREATE TABLE IF NOT EXISTS treasure (
+    id SERIAL PRIMARY KEY,
+    treasure_type_id integer REFERENCES creatures NOT NULL,
+    opened boolean DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
@@ -144,7 +158,7 @@ CREATE TABLE IF NOT EXISTS game_map (
     num_rows NUMERIC(7, 0) NOT NULL,
     num_cols NUMERIC(7, 0) NOT NULL,
     /* player_location ARRAY NOT NULL, /* formatted [row, col] */
-    interactions integer ARRAY DEFAULT array[]::integer[], /* formatted [row, col, interaction_id, ...] */
+    interactions integer ARRAY DEFAULT array[]::integer[], /* formatted [row, col, interaction_id, interaction_type, ...] */
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
@@ -155,6 +169,7 @@ CREATE TABLE IF NOT EXISTS game (
     dm_id integer,
     map_id integer REFERENCES game_map NOT NULL,
     combat_id integer REFERENCES combat DEFAULT NULL,
+    active boolean DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
