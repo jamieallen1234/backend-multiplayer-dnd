@@ -3,7 +3,7 @@ import { cp } from "fs";
 import pool from "../../db";
 import { BadRequestError } from "../../middleware/errors";
 import UserRepository from "./user.repository";
-import { Combat, Combatant, CreateCreatureData, CreateCreatureResults, CreateGameData, CreateTreasureType, Creature, EAbilities, ECombatantType, ECreatureType, EDirection, EInteractionType, EItemType, Game, GameInfo, GameMap, GetCreatureRow, Interaction, Inventory, InventoryRow, Location, MAX_PLAYERS, Party, Player, Range, Treasure, TreasureType, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema";
+import { Combat, Combatant, CreateCreatureData, CreateCreatureResults, CreateGameData, CreateTreasureType, Creature, CreatureType, EAbilities, EClass, ECombatantType, ECreatureType, EDirection, EInteractionType, EItemType, ERace, Game, GameInfo, GameMap, GetCreatureRow, Interaction, Inventory, InventoryRow, Location, MAX_MONSTERS_ON_MAP, MAX_PLAYERS, MAX_TREASURES_ON_MAP, Party, Player, Range, Treasure, TreasureType, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema";
 
 /**
  * Handles all db operations on the User table.
@@ -85,12 +85,71 @@ class UserService {
     }
 
     public async createGame(gameData: CreateGameData): Promise<Game> {
-        // TODO: use a transaction
+        // TODO: use a transaction to avoid partial game creations on error
         const partyLocation: Location = { row: 0, col: 0 }; // temp until replaced with real map data
         const interactions: Map<number, Map<number, Interaction[]>> = new Map<number, Map<number, Interaction[]>>();
-
         const players: Player[] = [];
 
+        const treasureTypes = await this._userRepository.getTreasureTypeIds();
+
+        if (treasureTypes.length === 0) {
+            throw new BadRequestError({ message: 'Cannot create game because no treasure types have been generated' });
+        } else if (gameData.map.min_monsters < 1 || gameData.map.min_monsters > gameData.map.max_monsters || gameData.map.max_monsters < 1 || gameData.map.max_monsters > MAX_MONSTERS_ON_MAP || gameData.map.min_monsters > MAX_MONSTERS_ON_MAP) {
+            throw new BadRequestError({ message: 'Cannot create game because monster count is out of range' });
+        } else if (gameData.map.min_treasures < 1 || gameData.map.min_treasures > gameData.map.max_treasures || gameData.map.max_treasures < 1 || gameData.map.max_treasures > MAX_TREASURES_ON_MAP || gameData.map.min_treasures > MAX_TREASURES_ON_MAP) {
+            throw new BadRequestError({ message: 'Cannot create game because treasure count is out of range' });
+        }
+
+        const numMonstersToAdd = this.pickIntegerFromRange({ min: gameData.map.min_monsters, max: gameData.map.max_monsters });
+        const numTreasuresToAdd = this.pickIntegerFromRange({ min: gameData.map.min_treasures, max: gameData.map.max_treasures });
+
+        // For simplicity, assume that monsters and treasures can be placed anywhere on the map
+        
+        // Add random monsters to map
+        for (let i = 0; i < numMonstersToAdd; ++i) {
+            // TODO: add more randomness to this generation
+            const creatureData: CreateCreatureData = {
+                name: `Enemy Creature ${i + 1}`,
+                hp: this.pickIntegerFromRange({ min: 50, max: 200 }),
+                abilities: [8, 10, 15, 6, 20, 9],
+                class: EClass.FIGHTER,
+                race: ERace.DWARF,
+                type: ECreatureType.MONSTER,
+                equipment_capacity: 10,
+                consumables_capacity: 10
+            }
+
+            const monster = await this._userRepository.createCreature(creatureData);
+
+            const row = this.pickIntegerFromRange({ min: 0, max: gameData.map.num_rows - 1 });
+            const col = this.pickIntegerFromRange({ min: 0, max: gameData.map.num_cols - 1 });
+            const interaction: Interaction = {
+                id: monster.creature.id,
+                interaction_type: EInteractionType.MONSTER
+            };
+
+            interactions.get(row)?.get(col)?.push(interaction);
+            console.log(`Adding monster ${JSON.stringify(monster)} to row ${row} and col ${col} of interactions map`);
+        }
+
+        // Add random treasures to map
+        for (let i = 0; i < numTreasuresToAdd; ++i) {
+            const treasureTypeIndex =  this.pickIntegerFromRange({ min: 0, max: treasureTypes.length - 1 });
+
+            const treasureId = await this._userRepository.createTreasure(treasureTypes[treasureTypeIndex]);
+
+            const row = this.pickIntegerFromRange({ min: 0, max: gameData.map.num_rows - 1 });
+            const col = this.pickIntegerFromRange({ min: 0, max: gameData.map.num_cols - 1 });
+            const interaction: Interaction = {
+                id: treasureId,
+                interaction_type: EInteractionType.TREASURE
+            };
+
+            interactions.get(row)?.get(col)?.push(interaction);
+            console.log(`Adding treasure ${treasureId} to row ${row} and col ${col} of interactions map`);
+        }
+
+        // Create player if provided
         if (gameData.player) {
             const character: Creature = await this.getCreature(gameData.player.character_id, ECreatureType.CHARACTER);
 
@@ -98,16 +157,19 @@ class UserService {
             players.push(player);
         }
 
+        // Create dungeon master if provided
         let dm;
         if (gameData.dm?.user_id) {
             dm = await this._userRepository.createDungeonMaster(gameData.dm.user_id, gameData.dm.user_name);
         }
 
-        // TODO: Add random monsters and treasures to the map
+        // Create party
         let party: Party = await this._userRepository.createParty(players, partyLocation);
 
+        // Create game map
         const gameMap: GameMap = await this._userRepository.createGameMap(gameData.map.num_rows, gameData.map.num_cols, interactions);
-        
+
+        // Create game instance
         const game: Game = await this._userRepository.createGame(gameMap, party, dm);
 
         return game;
@@ -124,47 +186,6 @@ class UserService {
         const game: Game = await this._userRepository.updateGame(id, gameData);
 
         return game;
-
-        /*
-        party_id integer,
-        dm_id integer,
-        map_id integer REFERENCES game_map NOT NULL,
-        combat_id integer REFERENCES combat DEFAULT NULL,
-        active boolean DEFAULT false,
-        */
-        
-        /*
-        // TODO: use a transaction
-        const partyLocation: Location = { x: 0, y: 0 }; // temp until replaced with real map data
-        const interactions: Map<number, Map<number, Interaction[]>> = new Map<number, Map<number, Interaction[]>>();
-
-        const players: Player[] = [];
-
-        if (gameData.player) {
-            // TODO: Should a player exist outside the game? -> no, but a user should so use a user_id?
-            let character;
-            if (gameData.player.character_id) {
-                character = await this.getCreature(gameData.player.character_id, ECreatureType.CHARACTER);
-            }
-
-            const player = await this._userRepository.createPlayer(gameData.player.player_name, character);
-            players.push(player);
-        }
-
-        let dm;
-        if (gameData.dm?.admin_id) {
-            dm = await this._userRepository.createDungeonMaster(gameData.dm.dm_name);
-        }
-
-        // TODO: Add random monsters and treasures to the map
-        let party: Party = await this._userRepository.createParty(players, partyLocation);
-
-        const gameMap: GameMap = await this._userRepository.createGameMap(gameData.map.num_rows, gameData.map.num_cols, interactions);
-        
-        const game: Game = await this._userRepository.createGame(gameMap, party, dm);
-
-        return game;
-        */
     }
 
     public async getGame(id: number): Promise<Game> {

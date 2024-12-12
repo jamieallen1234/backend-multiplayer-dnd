@@ -131,6 +131,13 @@ class UserRepository {
         return (await this.getCreatures([id], type))[0];
     }
 
+    public async getCreatureTypeIds(type: ECreatureType): Promise<number[]> {
+        const getTreasureTypesQuery = 'SELECT id FROM creature_types WHERE c_type = $1';
+        const getTreasureTypesValues = [type];
+        const treasureIds = (await pool.query(getTreasureTypesQuery, getTreasureTypesValues)).rows;
+        return treasureIds;
+    }
+
     public async deleteCreature(id: number, type: ECreatureType): Promise<boolean> {
         const creatureRow = (await pool.query('SELECT * FROM creatures WHERE id = $1', [id])).rows[0];
 
@@ -534,6 +541,15 @@ class UserRepository {
      * Treasure Queries
      *****************************/
 
+    public async createTreasure(treasureTypeId: number): Promise<number> {
+        const createTreasureQuery = 'INSERT INTO treasure (treasure_type_id) VALUES ($1) RETURNING *';
+        const createTreasureValues = [treasureTypeId];
+
+        const treasureRow = (await pool.query(createTreasureQuery, createTreasureValues)).rows[0];
+
+        return treasureRow.id;
+    }
+
     /* Creates a treasure type */
     public async createTreasureType(data: CreateTreasureType): Promise<TreasureType> {
         const createTreasureTypeQuery = 'INSERT INTO treasure_type (equipment_ids, consumable_ids, currency_ids, num_equipment, num_consumables, num_currencies) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *';
@@ -600,15 +616,9 @@ class UserRepository {
         }
     }
 
-     /* Store the randomly generated treasures in the map */
-    public async populateMapInteractions(id: number, interactions: Map<number, Map<number, Interaction[]>>): Promise<void> {
-        const interactionsArray: number[] = [];
-        this.mapInteractionsMapToInteractionsArray(interactions, interactionsArray);
-    
-        const updateGameMapQuery = 'UPDATE game_map SET interactions = $1 WHERE id = $2 RETURNING *';
-        const updateGameMapValues = [interactionsArray, id];
-
-        (await pool.query(updateGameMapQuery, updateGameMapValues)).rows[0];
+    public async getTreasureTypeIds(): Promise<number[]> {
+        const treasureIds = (await pool.query('SELECT id FROM treasure_type')).rows;
+        return treasureIds;
     }
 
     public async getPartyRow(id: number): Promise<PartyRow> {

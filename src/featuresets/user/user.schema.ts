@@ -1,4 +1,6 @@
 export const MAX_PLAYERS = 4;
+export const MAX_MONSTERS_ON_MAP = 500;
+export const MAX_TREASURES_ON_MAP = 200;
 
 /**
  * Must be in order or abilities table rows
@@ -327,8 +329,12 @@ export type CreateGameData = {
     map: {
         num_rows: number,
         num_cols: number,
+        min_monsters: number,
+        max_monsters: number,
+        min_treasures: number,
+        max_treasures: number
     }
-    /* Iteractions will be randomly generated as per task description */
+    /* Interactions will be randomly generated as per task description */
 };
 
 export type GameInfo = {

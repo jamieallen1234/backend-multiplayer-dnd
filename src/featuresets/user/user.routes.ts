@@ -9,7 +9,6 @@ const userRepository = new UserRepository();
 const userService = new UserService(userRepository);
 const userController = new UserController(userService);
 
-
 /*************************
 /* ADMIN/DM ROUTES
 /*************************/
@@ -76,6 +75,7 @@ userRoutes.get('/game/lobby/dm', checkForSharedToken, userController.getAvailabl
 
 /* Future endpoints */
 // userRoutes.delete('/game/:id', checkForSharedToken, userController.deleteGame.bind(userController));
+
 // userRoutes.post('/npc', userController.createNpc.bind(userController));
 // userRoutes.put('/npc/:id', userController.updateNpc.bind(userController));
 // userRoutes.delete('/npc/:id', userController.deleteNpc.bind(userController));
@@ -83,5 +83,7 @@ userRoutes.get('/game/lobby/dm', checkForSharedToken, userController.getAvailabl
 // userRoutes.get('/npc/:id', userController.getNpc.bind(userController));
 
 // userRoutes.get('/game/rejoin', checkForSharedToken, userController.rejoinGame.bind(userController));
+
+// userRoutes.get('/character/:id/equip', checkForSharedToken, userController.equipCharacter.bind(userController));
 
 export default userRoutes;
