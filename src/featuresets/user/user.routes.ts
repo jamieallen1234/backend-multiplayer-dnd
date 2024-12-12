@@ -42,7 +42,6 @@ userRoutes.post('/game/:game_id/combat', checkForUserToken, userController.begin
 /*************************/
 // Game
 userRoutes.patch('/game/:game_id/join/player', checkForUserToken, userController.joinGameAsPlayer.bind(userController));
-userRoutes.get('/game/:game_id/join/player', checkForUserToken, userController.joinGameAsPlayer.bind(userController));
 
 // Party
 userRoutes.patch('/game/:game_id/party/:player_id/move', checkForUserToken, userController.moveParty.bind(userController));

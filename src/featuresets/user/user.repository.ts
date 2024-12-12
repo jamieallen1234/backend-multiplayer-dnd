@@ -131,11 +131,23 @@ class UserRepository {
         return (await this.getCreatures([id], type))[0];
     }
 
+    public async getCreatureIds(type: ECreatureType): Promise<number[]> {
+        const getCreaturesQuery = 'SELECT id FROM creature WHERE creature_type = $1';
+        const getCreaturesValues = [type];
+        const creatureIdRows = (await pool.query(getCreaturesQuery, getCreaturesValues)).rows;
+        const creatureIds = creatureIdRows.map((creature) => creature.id);
+
+        return creatureIds;
+    }
+    
+
     public async getCreatureTypeIds(type: ECreatureType): Promise<number[]> {
-        const getTreasureTypesQuery = 'SELECT id FROM creature_types WHERE c_type = $1';
-        const getTreasureTypesValues = [type];
-        const treasureIds = (await pool.query(getTreasureTypesQuery, getTreasureTypesValues)).rows;
-        return treasureIds;
+        const getCreatureTypesQuery = 'SELECT id FROM creature_types WHERE c_type = $1';
+        const getCreatureTypesValues = [type];
+        const creatureTypeIdRows = (await pool.query(getCreatureTypesQuery, getCreatureTypesValues)).rows;
+        const creatureTypeIds = creatureTypeIdRows.map((creatureType) => creatureType.id);
+
+        return creatureTypeIds;
     }
 
     public async deleteCreature(id: number, type: ECreatureType): Promise<boolean> {
@@ -498,7 +510,7 @@ class UserRepository {
     };
 
     public async createDungeonMaster(userId: string, userName: string): Promise<DungeonMaster> {
-        const createDungeonMasterQuery = 'INSERT INTO dunegeon_master (user_id, user_name) VALUES ($1, $2) RETURNING *';
+        const createDungeonMasterQuery = 'INSERT INTO dungeon_master (user_id, user_name) VALUES ($1, $2) RETURNING *';
         const createDungeonMasterValues = [userId, userName];
 
         const dmRow = (await pool.query(createDungeonMasterQuery, createDungeonMasterValues)).rows[0];
@@ -542,6 +554,7 @@ class UserRepository {
      *****************************/
 
     public async createTreasure(treasureTypeId: number): Promise<number> {
+        console.log(`Create treasure with treasureTypeId: ${treasureTypeId}`);
         const createTreasureQuery = 'INSERT INTO treasure (treasure_type_id) VALUES ($1) RETURNING *';
         const createTreasureValues = [treasureTypeId];
 
@@ -617,7 +630,9 @@ class UserRepository {
     }
 
     public async getTreasureTypeIds(): Promise<number[]> {
-        const treasureIds = (await pool.query('SELECT id FROM treasure_type')).rows;
+        const treasureIdRows = (await pool.query('SELECT id FROM treasure_type')).rows;
+        const treasureIds = treasureIdRows.map((treasureId) => treasureId.id);
+    
         return treasureIds;
     }
 

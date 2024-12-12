@@ -49,9 +49,9 @@ CREATE TABLE IF NOT EXISTS creatures (
     id SERIAL PRIMARY KEY,
     creature_name VARCHAR(255) NOT NULL,
     creature_type e_creature_type NOT NULL,
-    creature_properties_id integer REFERENCES creature_properties (id) NOT NULL,
-    creature_type_id integer REFERENCES creature_types (id) NOT NULL,
-    inventory_id integer REFERENCES inventories (id) NOT NULL,
+    creature_properties_id integer REFERENCES creature_properties(id) NOT NULL,
+    creature_type_id integer REFERENCES creature_types(id) NOT NULL,
+    inventory_id integer REFERENCES inventories(id) NOT NULL,
     equipped_ids integer ARRAY DEFAULT array[]::integer[], /* references equipment id */
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS player (
     id SERIAL PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL,
     user_name VARCHAR(255) NOT NULL,
-    character_id integer REFERENCES creatures NOT NULL,
+    character_id integer REFERENCES creatures(id) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS dungeon_master (
 
 CREATE TABLE IF NOT EXISTS combatant (
     id SERIAL PRIMARY KEY,
-    creature_id integer REFERENCES creatures NOT NULL,
+    creature_id integer REFERENCES creatures(id) NOT NULL,
     combatant_type e_combatant_type NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
@@ -166,10 +166,10 @@ CREATE TABLE IF NOT EXISTS game_map (
 
 CREATE TABLE IF NOT EXISTS game (
     id SERIAL PRIMARY KEY,
-    party_id integer REFERENCES party NOT NULL,
-    dm_id integer REFERENCES dungeon_master DEFAULT NULL,
-    map_id integer REFERENCES game_map NOT NULL,
-    combat_id integer REFERENCES combat DEFAULT NULL,
+    party_id integer REFERENCES party(id) NOT NULL,
+    dm_id integer REFERENCES dungeon_master(id) DEFAULT NULL,
+    map_id integer REFERENCES game_map(id) NOT NULL,
+    combat_id integer REFERENCES combat(id) DEFAULT NULL,
     active boolean DEFAULT false,
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp

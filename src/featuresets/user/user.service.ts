@@ -84,6 +84,22 @@ class UserService {
         return creature;
     }
 
+    private setTileInteraction(row: number, col: number, interaction: Interaction, interactions: Map<number, Map<number, Interaction[]>>): void {
+        let interactionsRow = interactions.get(row);
+        if (!interactionsRow) {
+            interactionsRow = new Map<number, Interaction[]>();
+            interactions.set(row, interactionsRow);
+        }
+
+        let tileInteractions: Interaction[] | undefined = interactionsRow.get(col);
+        if (!tileInteractions) {
+            tileInteractions = [];
+        }
+        tileInteractions.push(interaction);
+        interactionsRow.set(col, tileInteractions);
+        interactions.set(row, interactionsRow);
+    }
+
     public async createGame(gameData: CreateGameData): Promise<Game> {
         // TODO: use a transaction to avoid partial game creations on error
         const partyLocation: Location = { row: 0, col: 0 }; // temp until replaced with real map data
@@ -128,7 +144,7 @@ class UserService {
                 interaction_type: EInteractionType.MONSTER
             };
 
-            interactions.get(row)?.get(col)?.push(interaction);
+            this.setTileInteraction(row, col, interaction, interactions);
             console.log(`Adding monster ${JSON.stringify(monster)} to row ${row} and col ${col} of interactions map`);
         }
 
@@ -145,15 +161,13 @@ class UserService {
                 interaction_type: EInteractionType.TREASURE
             };
 
-            interactions.get(row)?.get(col)?.push(interaction);
+            this.setTileInteraction(row, col, interaction, interactions);
             console.log(`Adding treasure ${treasureId} to row ${row} and col ${col} of interactions map`);
         }
 
         // Create player if provided
         if (gameData.player) {
-            const character: Creature = await this.getCreature(gameData.player.character_id, ECreatureType.CHARACTER);
-
-            const player = await this._userRepository.createPlayer(gameData.player.user_id, gameData.player.user_name, character.id);
+            const player = await this._userRepository.createPlayer(gameData.player.user_id, gameData.player.user_name, gameData.player.character_id);
             players.push(player);
         }
 
