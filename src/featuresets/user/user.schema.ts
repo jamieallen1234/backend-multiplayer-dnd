@@ -50,7 +50,7 @@ export enum EInteractionType {
 };
 
 export enum ECombatantType {
-    PLAYER = 'player',
+    CHARACTER = 'character',
     MONSTER = 'monster'
 };
 

@@ -1,9 +1,7 @@
-import { lookup } from "dns";
-import { cp } from "fs";
-import pool from "../../db";
+import e from "express";
 import { BadRequestError } from "../../middleware/errors";
 import UserRepository from "./user.repository";
-import { Combat, Combatant, CreateCreatureData, CreateCreatureResults, CreateGameData, CreateTreasureType, Creature, CreatureType, EAbilities, EClass, ECombatantType, ECreatureType, EDirection, EInteractionType, EItemType, ERace, Game, GameInfo, GameMap, GetCreatureRow, Interaction, Inventory, InventoryRow, Location, MAX_MONSTERS_ON_MAP, MAX_PLAYERS, MAX_TREASURES_ON_MAP, Party, Player, Range, Treasure, TreasureType, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema";
+import { Combat, Combatant, CreateCreatureData, CreateCreatureResults, CreateGameData, CreateTreasureType, Creature, EAbilities, EClass, ECombatantType, ECreatureType, EDirection, EInteractionType, EItemType, ERace, Game, GameInfo, GameMap, GetCreatureRow, Interaction, Inventory, InventoryRow, Location, MAX_MONSTERS_ON_MAP, MAX_PLAYERS, MAX_TREASURES_ON_MAP, Party, Player, Range, Treasure, TreasureType, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema";
 
 /**
  * Handles all db operations on the User table.
@@ -145,7 +143,7 @@ class UserService {
             };
 
             this.setTileInteraction(row, col, interaction, interactions);
-            console.log(`Adding monster ${JSON.stringify(monster)} to row ${row} and col ${col} of interactions map`);
+            console.log(`Adding monster ${monster.creature.id} to row ${row} and col ${col} of interactions map`);
         }
 
         // Add random treasures to map
@@ -463,6 +461,8 @@ class UserService {
                     monsterIds.push(interaction.id);
                 }
             }
+        } else {
+            throw new BadRequestError({ message: 'Could not begin combat because no monsters are in the vicinity.' });
         }
 
         const creatures: Creature[] = await this.getCreatures([...monsterIds, ...characterIds]);
@@ -470,7 +470,7 @@ class UserService {
         // Create combatants
         for(let i = 0; i < creatures.length; ++i) {
             const creature = creatures[i];
-            const combatant: Combatant = await this._userRepository.createCombatant(creature, creature.creature_type === ECreatureType.MONSTER ? ECombatantType.MONSTER : ECombatantType.PLAYER);
+            const combatant: Combatant = await this._userRepository.createCombatant(creature, creature.creature_type === ECreatureType.MONSTER ? ECombatantType.MONSTER : ECombatantType.CHARACTER);
 
             combatants.push(combatant);
         }
@@ -498,7 +498,7 @@ class UserService {
         const game: Game = await this._userRepository.getGame(gameId);
         const party: Party = game.party;
         const players: Player[] = party.players;
-
+        
         if (!players || players.length === 0) {
             throw new BadRequestError({ message: 'Could not move party because there are no players in the party.' });
         } else if (!players.map((player) => player.id).includes(playerId)) {
@@ -512,15 +512,27 @@ class UserService {
         // TODO: Make sure party can move in the specified direction by checking map boundries and checking for walkable areas
         switch(direction) {
             case EDirection.NORTH:
-                partyLocation.row = partyLocation.row - 1;
+                if (partyLocation.row >= game.map.num_rows - 1) {
+                    throw new BadRequestError({ message: 'Could not move party because the party is already at the North boundry.' });
+                }
+                partyLocation.row = partyLocation.row + 1;
                 break;
             case EDirection.EAST:
+                if (partyLocation.col >= game.map.num_cols - 1) {
+                    throw new BadRequestError({ message: 'Could not move party because the party is already at the East boundry.' });
+                }
                 partyLocation.col = partyLocation.col + 1;
                 break;
             case EDirection.SOUTH:
+                if (partyLocation.row <= 0) {
+                    throw new BadRequestError({ message: 'Could not move party because the party is already at the South boundry.' });
+                }
                 partyLocation.row = partyLocation.row - 1;
                 break;
             case EDirection.WEST:
+                if (partyLocation.col <= 0) {
+                    throw new BadRequestError({ message: 'Could not move party because the party is already at the West boundry.' });
+                }
                 partyLocation.col = partyLocation.col - 1;
                 break;
         }
@@ -549,14 +561,18 @@ class UserService {
     }
 
     /**
-     * Take combat turn. Combatants must attack in order.
+     * Take combat turn. Combatants must attack in order. DM controls the monsters and players
+     * control their characters.
      * 
-     * Currently only supports attacking. In the future this should support other options such as
-     * spells, items, special abilities, retreating, and targeting multiple combatants.
+     * Currently only supports attacking.
+     * 
+     * In the future this should support other options such as spells, items, special abilities,
+     * retreating, and targeting multiple combatants.
      */
     public async takeCombatTurnForCombatant(gameId: number, combatId: number, attackerCombatantId: number, defenderCombatantId: number): Promise<void> {
         
         const combat: Combat = await this._userRepository.getCombat(combatId);
+        console.log(`combat: ${JSON.stringify(combat)}`);
         const attacker: Combatant = combat.combatants[combat.combatantTurnIndex];
         if (!attacker) {
             throw new BadRequestError({ message: 'Could not take combat turn because attacker does not exist in combat'});
@@ -599,7 +615,7 @@ class UserService {
                     if (defender.combatantType === ECombatantType.MONSTER) {
                         // Players won
                         await this.onCombatWin(gameId, combat);
-                    } else if (defender.combatantType === ECombatantType.PLAYER) {
+                    } else if (defender.combatantType === ECombatantType.CHARACTER) {
                         // Monsters won
                         await this.onCombatLoss(gameId, combat);
                     }

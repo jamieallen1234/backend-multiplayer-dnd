@@ -37,6 +37,7 @@ userRoutes.patch('/game/:game_id/join/:user_id/dm', checkForAdminToken, userCont
 // Combat
 userRoutes.post('/game/:game_id/combat', checkForAdminToken, userController.beginCombat.bind(userController));
 
+
 /*************************
 /* USER/PLAYER ROUTES
 /*************************/
@@ -46,8 +47,6 @@ userRoutes.patch('/game/:game_id/join/:user_id/player', checkForUserToken, userC
 // Party
 userRoutes.patch('/game/:game_id/party/:player_id/move', checkForUserToken, userController.moveParty.bind(userController));
 
-// Combat
-userRoutes.patch('/game/:game_id/combat/:combat_id', checkForUserToken, userController.takeCombatTurn.bind(userController));
 
 /*************************
 /* SHARED ROUTES
@@ -69,21 +68,32 @@ userRoutes.get('/game/:id', checkForSharedToken, userController.getGame.bind(use
 userRoutes.patch('/game/:id/start', checkForSharedToken, userController.startGame.bind(userController));
 userRoutes.put('/game/:id', checkForSharedToken, userController.updateGame.bind(userController)); // Added for the test but safer to use targeted endpoints such as start game
 
+// Combat
+userRoutes.patch('/game/:game_id/combat/:combat_id', checkForSharedToken, userController.takeCombatTurn.bind(userController));
+
 // Lobby
 userRoutes.get('/game/lobby/party', checkForSharedToken, userController.getAvailablePartyList.bind(userController));
 userRoutes.get('/game/lobby/dm', checkForSharedToken, userController.getAvailableDungeonMasterList.bind(userController));
 
+
 /* Future endpoints */
-// userRoutes.delete('/game/:id', checkForSharedToken, userController.deleteGame.bind(userController));
+// Game
+/* userRoutes.delete('/game/:id', checkForSharedToken, userController.endGame.bind(userController)); */
 
-// userRoutes.post('/npc', userController.createNpc.bind(userController));
-// userRoutes.put('/npc/:id', userController.updateNpc.bind(userController));
-// userRoutes.delete('/npc/:id', userController.deleteNpc.bind(userController));
-// userRoutes.get('/npc', userController.getNpcs.bind(userController));
-// userRoutes.get('/npc/:id', userController.getNpc.bind(userController));
+// NPC
+/* userRoutes.post('/npc', userController.createNpc.bind(userController));
+   userRoutes.put('/npc/:id', userController.updateNpc.bind(userController));
+   userRoutes.delete('/npc/:id', userController.deleteNpc.bind(userController));
+   userRoutes.get('/npc', userController.getNpcs.bind(userController));
+   userRoutes.get('/npc/:id', userController.getNpc.bind(userController));*/
 
-// userRoutes.get('/game/rejoin', checkForSharedToken, userController.rejoinGame.bind(userController));
+// Party
+/* userRoutes.get('/game/:game_id:/party/leave', checkForSharedToken, userController.leaveParty.bind(userController));
+   userRoutes.get('/game/:game_id/rejoin/:user_id/user', checkForSharedToken, userController.rejoinGame.bind(userController)); */
 
-// userRoutes.get('/character/:id/equip', checkForSharedToken, userController.equipCharacter.bind(userController));
+// Inventory / Equipment
+/* userRoutes.get('/character/:char_id/equip/:equipment_id', checkForSharedToken, userController.equipCharacter.bind(userController));
+   userRoutes.get('/character/:char_id/use_item/:item_id', checkForSharedToken, userController.useItem.bind(userController));
+   userRoutes.get('/character/:char_id/drop_item/:item_id', checkForSharedToken, userController.dropItem.bind(userController)); */
 
 export default userRoutes;

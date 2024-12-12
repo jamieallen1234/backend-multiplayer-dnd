@@ -1,6 +1,6 @@
 import pool from "../../db";
 import { BadRequestError } from "../../middleware/errors";
-import { Combat, Combatant, Consumable, CreateCreatureData, CreateCreatureResults, CreateTreasureType, Creature, CreatureProperties, CreatureType, Currency, DungeonMaster, EAbilities, EClass, ECombatantType, ECreatureType, EEquipment, EInteractionType, EItemType, Equipment, ERace, Game, GameInfo, GameMap, GetCreatureRow, Interaction, Inventory, InventoryRow, IteractionData, Location, Party, PartyRow, Player, Range, Treasure, TreasureType, TreasureTypeRow, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema"
+import { Combat, Combatant, Consumable, CreateCreatureData, CreateCreatureResults, CreateTreasureType, Creature, CreatureProperties, CreatureType, Currency, DungeonMaster, ECombatantType, ECreatureType, EEquipment, EInteractionType, EItemType, Equipment, ERace, Game, GameInfo, GameMap, Interaction, Inventory, InventoryRow, IteractionData, Location, Party, PartyRow, Player, Range, Treasure, TreasureType, TreasureTypeRow, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema"
 
 /**
  * Handles all db operations on the User table.
@@ -459,17 +459,12 @@ class UserRepository {
         const players = await this.getPlayers(gameRow.player_ids);
         const interactions: Map<number, Map<number, Interaction[]>> = this.getInteractions(gameRow.interactions);
 
-        return {
+        const game: Game = {
             id,
             party: {
                 id: gameRow.party_id,
                 players,
                 location: { row: gameRow.party_location[0], col: gameRow.party_location[1] }
-            },
-            dm : {
-                id: gameRow.dm_id,
-                user_id: gameRow.user_id,
-                user_name: gameRow.user_name
             },
             map: {
                 id: gameRow.map_id,
@@ -479,6 +474,16 @@ class UserRepository {
             },
             active: gameRow.active
         };
+
+        if (gameRow.dm_id) {
+            game.dm = {
+                id: gameRow.dm_id,
+                user_id: gameRow.user_id,
+                user_name: gameRow.user_name
+            };
+        }
+
+        return game;
     };
 
     public async createParty(players: Player[], location: Location): Promise<Party> {
@@ -522,7 +527,10 @@ class UserRepository {
     };
 
     public async getAvailablePartyList(): Promise<GameInfo[]> {
-        const availableGamesQuery = 'SELECT * FROM game WHERE active = false AND cardinality(party) < 4';
+        const availableGamesQuery =
+        'SELECT * FROM game AS g \
+         LEFT JOIN party AS p ON g.party_id = p.id \
+         WHERE g.active = false AND cardinality(p.player_ids) < 4';
         const gameRows = (await pool.query(availableGamesQuery)).rows;
 
         return gameRows.map((row) => {
@@ -535,7 +543,7 @@ class UserRepository {
     }
 
     public async getAvailableDungeonMasterList(): Promise<GameInfo[]> {
-        const availableGamesQuery = 'SELECT * FROM game WHERE active = false AND dm = NULL';
+        const availableGamesQuery = 'SELECT * FROM game WHERE active = false AND dm_id IS NULL';
 
         const gameRows = (await pool.query(availableGamesQuery)).rows;
 
@@ -670,7 +678,7 @@ class UserRepository {
     }
 
     public async createCombatant(creature: Creature, type: ECombatantType): Promise<Combatant> {
-        const createCombatantQuery = 'INSERT INTO combatant (creature_id, combatantType) VALUES ($1, $2) RETURNING *';
+        const createCombatantQuery = 'INSERT INTO combatant (creature_id, combatant_type) VALUES ($1, $2) RETURNING *';
         const createCombatantValues = [creature.id, type];
 
         const combatantRow = (await pool.query(createCombatantQuery, createCombatantValues)).rows[0];
@@ -717,7 +725,7 @@ class UserRepository {
             id: combatRow.id,
             combatantTurnIndex: combatRow.combatant_turn_index,
             combatants,
-            faintedMonsterIds: [combatRow.fainted_monster_ids],
+            faintedMonsterIds: combatRow.fainted_monster_ids,
             faintedCharacterIds: combatRow.fainted_character_ids
         };
     }
