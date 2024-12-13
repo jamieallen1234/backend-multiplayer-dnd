@@ -392,7 +392,7 @@ class UserRepository {
     
     public async updateGame(id: number, gameData: UpdateGameData): Promise<Game> {
         const updateGameQuery = 'UPDATE game SET party_id = $1, dm_id = $2, map_id = $3, combat_id = $4, active = $5 WHERE id = $6';
-        const updateGameValues = [gameData.party.id, gameData.dm?.id, gameData.map.id, gameData.combat?.id, gameData.active, id];
+        const updateGameValues = [gameData.party.id, gameData.dm?.id, gameData.map.id, gameData.combat?.id, gameData.active ? 'true' : 'false', id];
 
         await pool.query(updateGameQuery, updateGameValues);
 
@@ -440,7 +440,12 @@ class UserRepository {
     }
 
     public async startGame(id: number): Promise<boolean> {
-        await pool.query(`UPDATE game SET active = true WHERE id = ${id}`);
+        const updateGameQuery = 'UPDATE game SET active = $1 WHERE id = $2 RETURNING *';
+        const updateGameValues = ['true', id];
+
+        const gameRow = (await pool.query(updateGameQuery, updateGameValues)).rows[0];
+
+        console.log(`start gameRow: ${JSON.stringify(gameRow)}`);
 
         return true;
     }
@@ -455,6 +460,10 @@ class UserRepository {
             WHERE g.id = ${id}
             `;
         const gameRow = (await pool.query(getGameQuery)).rows[0];
+        
+        if (!gameRow) {
+            throw new BadRequestError({ message: 'Could get game because it does not exist' });
+        }
 
         const players = await this.getPlayers(gameRow.player_ids);
         const interactions: Map<number, Map<number, Interaction[]>> = this.getInteractions(gameRow.interactions);
@@ -472,7 +481,7 @@ class UserRepository {
                 num_cols: gameRow.num_cols,
                 interactions
             },
-            active: gameRow.active
+            active: gameRow.active === 'true'
         };
 
         if (gameRow.dm_id) {
@@ -530,8 +539,9 @@ class UserRepository {
         const availableGamesQuery =
         'SELECT * FROM game AS g \
          LEFT JOIN party AS p ON g.party_id = p.id \
-         WHERE g.active = false AND cardinality(p.player_ids) < 4';
-        const gameRows = (await pool.query(availableGamesQuery)).rows;
+         WHERE g.active = $1 AND cardinality(p.player_ids) < 4';
+        const availableGamesValues = ['false'];
+        const gameRows = (await pool.query(availableGamesQuery, availableGamesValues)).rows;
 
         return gameRows.map((row) => {
             return {
@@ -543,9 +553,10 @@ class UserRepository {
     }
 
     public async getAvailableDungeonMasterList(): Promise<GameInfo[]> {
-        const availableGamesQuery = 'SELECT * FROM game WHERE active = false AND dm_id IS NULL';
+        const availableGamesQuery = 'SELECT * FROM game WHERE active = $1 AND dm_id IS NULL';
+        const availableGamesValues = ['false'];
 
-        const gameRows = (await pool.query(availableGamesQuery)).rows;
+        const gameRows = (await pool.query(availableGamesQuery, availableGamesValues)).rows;
 
         return gameRows.map((row) => {
             return {
@@ -619,6 +630,7 @@ class UserRepository {
         const getTreasureValues = [id];
 
         const treasureRow = (await pool.query(getTreasureQuery, getTreasureValues)).rows[0];
+        console.log(`getTreasure treasureRow: ${JSON.stringify(treasureRow)}`);
 
         return {
             id: treasureRow.id,
@@ -632,7 +644,7 @@ class UserRepository {
                 num_consumables: this.mapArrayToRange(treasureRow.num_consumables),
                 num_currencies: this.mapArrayToRange(treasureRow.num_currencies)
             },
-            opened: treasureRow.opened,
+            opened: treasureRow.opened === 'true',
         }
     }
 
@@ -641,6 +653,18 @@ class UserRepository {
         const treasureIds = treasureIdRows.map((treasureId) => treasureId.id);
     
         return treasureIds;
+    }
+
+    public async updateTreasure(treasure: Treasure): Promise<Treasure> {
+        console.log(`treasure.opened: ${treasure.opened}`);
+        const updateTreasureQuery = 'UPDATE treasure SET treasure_type_id = $1, opened = $2 WHERE id = $3 RETURNING *';
+        const updateTreasureValues = [treasure.treasure_type.id, treasure.opened ? 'true' : 'false', treasure.id];
+
+        const treasureRows = (await pool.query(updateTreasureQuery, updateTreasureValues)).rows;
+
+        console.log(`updateTreasure treasureRows: ${JSON.stringify(treasureRows)}`);
+
+        return treasure;
     }
 
     public async getPartyRow(id: number): Promise<PartyRow> {
@@ -652,12 +676,12 @@ class UserRepository {
         return partyRow;
     }
 
-    /* Get the inventories for the characters of a list of players */
+    /* Get the inventories for the characters from the list of players */
     public async getInventoryIds(playerIds: number[]): Promise<InventoryRow[]> {
         const getPlayersQuery =
         'SELECT * FROM player AS p \
          LEFT JOIN ( \
-            SELECT * FROM creatures AS c \
+            SELECT c.id, c.inventory_id, i.equipment_capacity, i.consumables_capacity, i.equipment_ids, i.consumable_ids, i.currency_ids FROM creatures AS c \
             LEFT JOIN inventories AS i ON c.inventory_id = i.id \
          ) ci ON p.character_id = ci.id \
          WHERE p.id = ANY ($1::int[])';
@@ -747,13 +771,23 @@ class UserRepository {
         };
     }
 
+    public async updateCombat(combat: Combat): Promise<Combat> {
+        const combatantIds = combat.combatants.map((combatant) => combatant.id);
+        const updateCombatQuery = 'UPDATE combat SET combatant_ids = $1, combatant_turn_index = $2, fainted_monster_ids = $3, fainted_character_ids = $4 WHERE id = $5 RETURNING *';
+        const updateCombatValues = [combatantIds, combat.combatantTurnIndex, combat.faintedMonsterIds, combat.faintedMonsterIds, combat.id];
+
+        await pool.query(updateCombatQuery, updateCombatValues);
+
+        return combat;
+    }
+
     public async updateParty(partyId: number, party: Party): Promise<Party> {
         const playerIds = party.players.map((player) => player.id);
         const partyLocation = [party.location.row, party.location.col];
         const updatePartyQuery = 'UPDATE party SET player_ids = $1, party_location = $2 WHERE id = $3 RETURNING *';
         const updatePartyValues = [playerIds, partyLocation, partyId];
 
-        (await pool.query(updatePartyQuery, updatePartyValues)).rows[0];
+        await pool.query(updatePartyQuery, updatePartyValues);
 
         return party;
     }

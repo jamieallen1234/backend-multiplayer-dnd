@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS treasure_type (
 CREATE TABLE IF NOT EXISTS treasure (
     id SERIAL PRIMARY KEY,
     treasure_type_id integer REFERENCES creatures NOT NULL,
-    opened boolean DEFAULT false,
+    opened VARCHAR(5) NOT NULL DEFAULT 'false',
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );
@@ -170,7 +170,7 @@ CREATE TABLE IF NOT EXISTS game (
     dm_id integer REFERENCES dungeon_master(id) DEFAULT NULL,
     map_id integer REFERENCES game_map(id) NOT NULL,
     combat_id integer REFERENCES combat(id) DEFAULT NULL,
-    active boolean DEFAULT false,
+    active VARCHAR(5) NOT NULL DEFAULT 'false',
     created_at TIMESTAMP NOT NULL DEFAULT current_timestamp,
     updated_at TIMESTAMP NOT NULL DEFAULT current_timestamp
 );

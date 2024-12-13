@@ -319,9 +319,9 @@ class UserService {
      * In the future it would be better to seperate these tasks and let the players and dm decide who gets what loot.
      * It would also be better to give loot to another player if the selected players inventory is full.
      */
-    public async openTreasureInstance(partyId: number, treasureId: number): Promise<void> {
-        const existingTreasure = await this._userRepository.getTreasure(treasureId);
-
+    public async openTreasureInstance(treasureId: number, partyId: number): Promise<void> {
+        const existingTreasure: Treasure = await this._userRepository.getTreasure(treasureId);
+        console.log(`existingTreasure: ${JSON.stringify(existingTreasure)}`);
         if (!existingTreasure) {
             throw new BadRequestError({ message: 'Could not open treasure because it does not exist.' });
         } else if (existingTreasure.opened) {
@@ -376,6 +376,14 @@ class UserService {
             inventoryRow.currency_ids.push(currency);
             await this._userRepository.updateInventoryItems(inventoryRow.id, EItemType.CURRENCY, inventoryRow.currency_ids);
         }
+
+        existingTreasure.opened = true;
+
+        // Update treasure
+        await this._userRepository.updateTreasure(existingTreasure);
+
+        // TODO: get the names of all the loot and the names of the players
+        console.log('Opened treasure chest and doled out the loot to the players randomly.');
     }
 
     public async joinGameAsDungeonMaster(gameId: number, userId: string, userName: string): Promise<boolean> {
@@ -543,6 +551,7 @@ class UserService {
     }
 
     private async onCombatWin(gameId: number, combat: Combat): Promise<void> {
+        console.log(`Party has vanquished the enemies and won combat!`);
         // TODO: Loot monsters
 
         // TODO: Apply XP to characters
@@ -554,6 +563,7 @@ class UserService {
     }
 
     private async onCombatLoss(gameId: number, combat: Combat): Promise<void> {
+        console.log(`Party has lost combat and is unabled to continue!`);
         // TODO: Teleport team to healing area
 
         // Cleanup combat state
@@ -570,9 +580,8 @@ class UserService {
      * retreating, and targeting multiple combatants.
      */
     public async takeCombatTurnForCombatant(gameId: number, combatId: number, attackerCombatantId: number, defenderCombatantId: number): Promise<void> {
-        
         const combat: Combat = await this._userRepository.getCombat(combatId);
-        console.log(`combat: ${JSON.stringify(combat)}`);
+        
         const attacker: Combatant = combat.combatants[combat.combatantTurnIndex];
         if (!attacker) {
             throw new BadRequestError({ message: 'Could not take combat turn because attacker does not exist in combat'});
@@ -594,8 +603,12 @@ class UserService {
         const defendPower = defender.creature.properties.abilities[EAbilities.DEXTERITY]; // We don't have AC so using dexterity for now
 
         if (attackPower > defendPower) {
-            // Attack hits
-            defender.creature.properties.hp = Math.max(defender.creature.properties.hp - (attackPower - defendPower), 0);
+            // Attack hits so apply damage to defender
+            const damage =  (attackPower - defendPower);
+            defender.creature.properties.hp = Math.max(defender.creature.properties.hp - damage, 0);;
+
+            console.log(`Attacker ${attacker.creature.creature_name} attacked ${defender.creature.creature_name} for ${damage} damage!`);
+            console.log(`${defender.creature.creature_name} has ${defender.creature.properties.hp} hp remaining.`);
 
             // Persist damage done to defender
             await this._userRepository.updateCreatureProperties(defender.creature.properties);
@@ -608,9 +621,13 @@ class UserService {
                 if (defender.creature.creature_type === ECreatureType.CHARACTER) {
                     combat.faintedCharacterIds.push(defender.creature.id);
                 }
-                combat.combatants.filter((combatant) => combatant.id !== defender.id);
+                
 
-                if(combat.combatants.filter((combatant) => combatant.combatantType !== defender.combatantType).length === 0) {
+                console.log(`Defender ${defender.creature.creature_name} has fainted!`);
+
+                combat.combatants = combat.combatants.filter((combatant) => combatant.id !== defender.id);
+
+                if(combat.combatants.filter((combatant) => combatant.combatantType === defender.combatantType).length === 0) {
                     // Defenders have all fainted
                     if (defender.combatantType === ECombatantType.MONSTER) {
                         // Players won
@@ -621,7 +638,14 @@ class UserService {
                     }
                 }
             }
+        } else {
+            console.log(`Attacker ${attacker.creature.creature_name} attacked ${defender.creature.creature_name} and missed!`);
         }
+
+        // Persist combat updates
+        combat.combatantTurnIndex = (Number(combat.combatantTurnIndex) + 1) % combat.combatants.length;
+
+        await this._userRepository.updateCombat(combat);
     }
 }
 
