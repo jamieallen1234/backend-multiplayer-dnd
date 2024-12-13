@@ -26,29 +26,31 @@ ex. A creature has properties, type, inventory, equipment, abilities and movemen
 
 2. Use postman endpoints: https://web.postman.co/workspace/a16d5e27-1295-412f-810e-4f0f1a1a5cf4/collection/40208442-77148dfd-fb08-474f-a19c-c22fc6f25786?origin=tab-menu
 
+3. Follow the console logs to get a narrative of what is happening in the game.
+
 4. Use postman "Create Character".
 
-3. Use postman "Create monster" at least once.
+5. Use postman "Create monster" at least once.
 
-5. Use postman "Create treasure" at least once.
+6. Use postman "Create treasure" at least once.
 
-6. Use Postman "Create game as Player".
+7. Use Postman "Create game as Player".
 
-7. Use Postman "Get Available Games for DM".
+8. Use Postman "Get Available Games for DM".
 
-8. Use Postman "Join Game as DM".
+9. Use Postman "Join Game as DM".
 
-9. Use Postman "Start Game".
+10. Use Postman "Start Game".
 
-10. The game has started, so now you can move, open treasures or start combat.
+11. The game has started, so now you can move, open treasures or start combat.
 
-11. To fight monsters they must be in the same tile as the party.
+12. To fight monsters they must be in the same tile as the party.
 
-12. When combat starts, it ends only after the party's characters hp is reduced to 0 or all the monsters hp is reduced to 0.
+13. When combat starts, it ends only after the party's characters hp is reduced to 0 or all the monsters hp is reduced to 0.
 
-13. When opening a treasure, the loot is randomly dispersed accross the party and put into the players inventory.
+14. When opening a treasure, the loot is randomly dispersed accross the party and put into the players inventory.
 
-14. Any player can move the party. They must stay within the bounds of the map.
+15. Any player can move the party. They must stay within the bounds of the map.
 
 ## Challenges
 
@@ -69,6 +71,7 @@ ex. A creature has properties, type, inventory, equipment, abilities and movemen
 - Use redis cache for gamestate instead of presisting in tables to reduce db load
 - Use ZOD for schema validation
 - Consider making certain operations atomic, such as joining a game
+- The character and monster endpoints should be separated into CreatureType vs CreatureInstance (just like Treasures)
 
 # Template - Typescript, Node.js, Express, and PostgreSQL
 
