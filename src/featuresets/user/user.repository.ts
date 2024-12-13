@@ -12,6 +12,104 @@ class UserRepository {
     }
 
     /*****************************
+     * Treasure Queries
+     *****************************/
+
+    /* Create treasure */
+    public async createTreasure(treasureTypeId: number): Promise<number> {
+        const createTreasureQuery = 'INSERT INTO treasure (treasure_type_id) VALUES ($1) RETURNING *';
+        const createTreasureValues = [treasureTypeId];
+
+        const treasureRow = (await pool.query(createTreasureQuery, createTreasureValues)).rows[0];
+
+        return treasureRow.id;
+    }
+
+    /* Creates a treasure type */
+    public async createTreasureType(data: CreateTreasureType): Promise<TreasureType> {
+        const createTreasureTypeQuery = 'INSERT INTO treasure_type (equipment_ids, consumable_ids, currency_ids, num_equipment, num_consumables, num_currencies) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *';
+        const createTreasureTypeValues = [data.equipment_ids, data.consumable_ids, data.currency_ids, mapRangeToArray(data.num_equipment), mapRangeToArray(data.num_consumables), mapRangeToArray(data.num_currencies)];
+
+        const treasureTypeRow = (await pool.query(createTreasureTypeQuery, createTreasureTypeValues)).rows[0];
+
+        return mapTreasureTypeRowToTreasureType(treasureTypeRow);
+    }
+
+    /* Updates a treasure type */
+    public async updateTreasureType(id: number, data: UpdateTreasureType): Promise<TreasureType> {
+        const updateTreasureTypeQuery = 'UPDATE treasure_type SET equipment_ids = $1, consumable_ids = $2, currency_ids = $3, num_equipment = $4, num_consumables = $5, num_currencies = $6 WHERE id = $7 RETURNING *';
+        const updateTreasureTypeValues = [data.equipment_ids, data.consumable_ids, data.currency_ids, mapRangeToArray(data.num_equipment), mapRangeToArray(data.num_consumables), mapRangeToArray(data.num_currencies), id];
+
+        const treasureTypeRow = (await pool.query(updateTreasureTypeQuery, updateTreasureTypeValues)).rows[0];
+
+        return mapTreasureTypeRowToTreasureType(treasureTypeRow);
+    }
+
+    /* Gets a treasure type */
+    public async getTreasureType(id: number): Promise<TreasureType | null> {
+        const getTreasureTypeQuery = 'SELECT * FROM treasure_type WHERE id = $1';
+        const getTreasureTypeValues = [id];
+
+        const treasureTypeRow = (await pool.query(getTreasureTypeQuery, getTreasureTypeValues)).rows[0];
+
+        return treasureTypeRow ? mapTreasureTypeRowToTreasureType(treasureTypeRow) : null;
+    }
+
+    /* Deletes a treasure type */
+    public async deleteTreasureType(id: number): Promise<boolean> {
+        const deleteTreasureTypeQuery = 'DELETE FROM treasure_type WHERE id = $1';
+        const deleteTreasureTypeValues = [id];
+
+        await pool.query(deleteTreasureTypeQuery, deleteTreasureTypeValues);
+
+        return true;
+    }
+
+    /** Get treasure instance */
+    public async getTreasure(id: number): Promise<Treasure> {
+        const getTreasureQuery =
+            'SELECT * FROM treasure AS t \
+             LEFT JOIN treasure_type AS tt ON t.treasure_type_id = tt.id \
+             WHERE t.id = $1';
+        const getTreasureValues = [id];
+
+        const treasureRow = (await pool.query(getTreasureQuery, getTreasureValues)).rows[0];
+
+        return {
+            id: treasureRow.id,
+            interaction_type: EInteractionType.TREASURE,
+            treasure_type: {
+                id: treasureRow.treasure_type_id,
+                equipment_ids: treasureRow.equipment_ids,
+                consumable_ids: treasureRow.consumable_ids,
+                currency_ids: treasureRow.currency_ids,
+                num_equipment: mapArrayToRange(treasureRow.num_equipment),
+                num_consumables: mapArrayToRange(treasureRow.num_consumables),
+                num_currencies: mapArrayToRange(treasureRow.num_currencies)
+            },
+            opened: treasureRow.opened === 'true',
+        }
+    }
+
+    /* Get treasure type ids */
+    public async getTreasureTypeIds(): Promise<number[]> {
+        const treasureIdRows = (await pool.query('SELECT id FROM treasure_type')).rows;
+        const treasureIds = treasureIdRows.map((treasureId) => treasureId.id);
+    
+        return treasureIds;
+    }
+
+    /* Update treasure */
+    public async updateTreasure(treasure: Treasure): Promise<Treasure> {
+        const updateTreasureQuery = 'UPDATE treasure SET treasure_type_id = $1, opened = $2 WHERE id = $3 RETURNING *';
+        const updateTreasureValues = [treasure.treasure_type.id, treasure.opened ? 'true' : 'false', treasure.id];
+
+        const treasureRows = (await pool.query(updateTreasureQuery, updateTreasureValues)).rows;
+
+        return treasure;
+    }
+
+    /*****************************
      * Creature Queries
      *****************************/
 
@@ -569,104 +667,6 @@ class UserRepository {
                 dm_id: row.dm_id
             }
         });
-    }
- 
-    /*****************************
-     * Treasure Queries
-     *****************************/
-
-    /* Create treasure */
-    public async createTreasure(treasureTypeId: number): Promise<number> {
-        const createTreasureQuery = 'INSERT INTO treasure (treasure_type_id) VALUES ($1) RETURNING *';
-        const createTreasureValues = [treasureTypeId];
-
-        const treasureRow = (await pool.query(createTreasureQuery, createTreasureValues)).rows[0];
-
-        return treasureRow.id;
-    }
-
-    /* Creates a treasure type */
-    public async createTreasureType(data: CreateTreasureType): Promise<TreasureType> {
-        const createTreasureTypeQuery = 'INSERT INTO treasure_type (equipment_ids, consumable_ids, currency_ids, num_equipment, num_consumables, num_currencies) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *';
-        const createTreasureTypeValues = [data.equipment_ids, data.consumable_ids, data.currency_ids, mapRangeToArray(data.num_equipment), mapRangeToArray(data.num_consumables), mapRangeToArray(data.num_currencies)];
-
-        const treasureTypeRow = (await pool.query(createTreasureTypeQuery, createTreasureTypeValues)).rows[0];
-
-        return mapTreasureTypeRowToTreasureType(treasureTypeRow);
-    }
-
-    /* Updates a treasure type */
-    public async updateTreasureType(id: number, data: UpdateTreasureType): Promise<TreasureType> {
-        const updateTreasureTypeQuery = 'UPDATE treasure_type SET equipment_ids = $1, consumable_ids = $2, currency_ids = $3, num_equipment = $4, num_consumables = $5, num_currencies = $6 WHERE id = $7 RETURNING *';
-        const updateTreasureTypeValues = [data.equipment_ids, data.consumable_ids, data.currency_ids, mapRangeToArray(data.num_equipment), mapRangeToArray(data.num_consumables), mapRangeToArray(data.num_currencies), id];
-
-        const treasureTypeRow = (await pool.query(updateTreasureTypeQuery, updateTreasureTypeValues)).rows[0];
-
-        return mapTreasureTypeRowToTreasureType(treasureTypeRow);
-    }
-
-    /* Gets a treasure type */
-    public async getTreasureType(id: number): Promise<TreasureType | null> {
-        const getTreasureTypeQuery = 'SELECT * FROM treasure_type WHERE id = $1';
-        const getTreasureTypeValues = [id];
-
-        const treasureTypeRow = (await pool.query(getTreasureTypeQuery, getTreasureTypeValues)).rows[0];
-
-        return treasureTypeRow ? mapTreasureTypeRowToTreasureType(treasureTypeRow) : null;
-    }
-
-    /* Deletes a treasure type */
-    public async deleteTreasureType(id: number): Promise<boolean> {
-        const deleteTreasureTypeQuery = 'DELETE FROM treasure_type WHERE id = $1';
-        const deleteTreasureTypeValues = [id];
-
-        await pool.query(deleteTreasureTypeQuery, deleteTreasureTypeValues);
-
-        return true;
-    }
-
-    /** Get treasure instance */
-    public async getTreasure(id: number): Promise<Treasure> {
-        const getTreasureQuery =
-            'SELECT * FROM treasure AS t \
-             LEFT JOIN treasure_type AS tt ON t.treasure_type_id = tt.id \
-             WHERE t.id = $1';
-        const getTreasureValues = [id];
-
-        const treasureRow = (await pool.query(getTreasureQuery, getTreasureValues)).rows[0];
-
-        return {
-            id: treasureRow.id,
-            interaction_type: EInteractionType.TREASURE,
-            treasure_type: {
-                id: treasureRow.treasure_type_id,
-                equipment_ids: treasureRow.equipment_ids,
-                consumable_ids: treasureRow.consumable_ids,
-                currency_ids: treasureRow.currency_ids,
-                num_equipment: mapArrayToRange(treasureRow.num_equipment),
-                num_consumables: mapArrayToRange(treasureRow.num_consumables),
-                num_currencies: mapArrayToRange(treasureRow.num_currencies)
-            },
-            opened: treasureRow.opened === 'true',
-        }
-    }
-
-    /* Get treasure type ids */
-    public async getTreasureTypeIds(): Promise<number[]> {
-        const treasureIdRows = (await pool.query('SELECT id FROM treasure_type')).rows;
-        const treasureIds = treasureIdRows.map((treasureId) => treasureId.id);
-    
-        return treasureIds;
-    }
-
-    /* Update treasure */
-    public async updateTreasure(treasure: Treasure): Promise<Treasure> {
-        const updateTreasureQuery = 'UPDATE treasure SET treasure_type_id = $1, opened = $2 WHERE id = $3 RETURNING *';
-        const updateTreasureValues = [treasure.treasure_type.id, treasure.opened ? 'true' : 'false', treasure.id];
-
-        const treasureRows = (await pool.query(updateTreasureQuery, updateTreasureValues)).rows;
-
-        return treasure;
     }
 
     /*****************************

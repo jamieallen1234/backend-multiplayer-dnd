@@ -13,69 +13,6 @@ class UserService {
         this._userRepository = userRepository;
     }
 
-    /* Create monster */
-    public async createMonster(monsterDetails: CreateCreatureData): Promise<Creature> {
-        if (monsterDetails.type !== ECreatureType.MONSTER) {
-            throw new BadRequestError({ message: 'Could not create monster because type was not of monster' });
-        }
-
-        return this.createCreature(monsterDetails);
-    }
-
-    /* Create character */
-    public async createCharacter(characterData: CreateCreatureData): Promise<Creature> {
-        if (characterData.type !== ECreatureType.CHARACTER) {
-            throw new BadRequestError({ message: 'Could not create character because type was not of character' });
-        }
-
-        return this.createCreature(characterData);
-    }
-
-    /* Create creature */
-    public async createCreature(creatureDetails: CreateCreatureData): Promise<Creature> {
-        const creatureResults: CreateCreatureResults = await this._userRepository.createCreature(creatureDetails);
-
-        console.log(`Created creature of type ${creatureDetails.type}`);
-
-        return mapCreatureResultsToCreature(creatureResults);
-    }
-
-    /* Update creature */
-    public async updateCreature(creatureId: number, creatureData: UpdateCreatureData): Promise<boolean> {
-        if (!creatureData.properties?.id) {
-            throw new BadRequestError({ message: `Could not update creature ${creatureId} because properties is missing` });
-        } else if (!creatureData.type?.id) {
-            throw new BadRequestError({ message: `Could not update creature ${creatureId} because type is missing` });
-        } else if (!creatureData.inventory?.id) {
-            throw new BadRequestError({ message: `Could not update creature ${creatureId} because inventory is missing` });
-        }
-        
-        const updated = await this._userRepository.updateCreature(creatureId, creatureData);
-
-        return updated;
-    }
-
-    /* Delete creature */
-    public async deleteCreature(id: number, type: ECreatureType): Promise<boolean> {
-        const deleted = await this._userRepository.deleteCreature(id, type);
-
-        console.log('Deleted creature');
-
-        return deleted;
-    }
-
-    /* Get creature */
-    public async getCreature(id: number, type: ECreatureType): Promise<Creature> {
-        return (await this.getCreatures([id], type))[0];
-    }
-
-    /* Get creatures */
-    public async getCreatures(ids?: number[], type?: ECreatureType): Promise<Creature[]> {
-        const creatures: Creature[] = await this._userRepository.getCreatures(ids, type);
-
-        return creatures;
-    }
-
     /* Create game */
     public async createGame(gameData: CreateGameData): Promise<Game> {
         // TODO: use a transaction to avoid partial game creations on error
@@ -366,6 +303,69 @@ class UserService {
         // TODO: get the names of all the loot and the names of the players
         console.log('Opened treasure chest and doled out the loot to the players randomly.');
         console.log('Check characters inventory to see what loot they got.');
+    }
+
+    /* Create monster */
+    public async createMonster(monsterDetails: CreateCreatureData): Promise<Creature> {
+        if (monsterDetails.type !== ECreatureType.MONSTER) {
+            throw new BadRequestError({ message: 'Could not create monster because type was not of monster' });
+        }
+
+        return this.createCreature(monsterDetails);
+    }
+
+    /* Create character */
+    public async createCharacter(characterData: CreateCreatureData): Promise<Creature> {
+        if (characterData.type !== ECreatureType.CHARACTER) {
+            throw new BadRequestError({ message: 'Could not create character because type was not of character' });
+        }
+
+        return this.createCreature(characterData);
+    }
+
+    /* Create creature */
+    public async createCreature(creatureDetails: CreateCreatureData): Promise<Creature> {
+        const creatureResults: CreateCreatureResults = await this._userRepository.createCreature(creatureDetails);
+
+        console.log(`Created creature of type ${creatureDetails.type}`);
+
+        return mapCreatureResultsToCreature(creatureResults);
+    }
+
+    /* Update creature */
+    public async updateCreature(creatureId: number, creatureData: UpdateCreatureData): Promise<boolean> {
+        if (!creatureData.properties?.id) {
+            throw new BadRequestError({ message: `Could not update creature ${creatureId} because properties is missing` });
+        } else if (!creatureData.type?.id) {
+            throw new BadRequestError({ message: `Could not update creature ${creatureId} because type is missing` });
+        } else if (!creatureData.inventory?.id) {
+            throw new BadRequestError({ message: `Could not update creature ${creatureId} because inventory is missing` });
+        }
+        
+        const updated = await this._userRepository.updateCreature(creatureId, creatureData);
+
+        return updated;
+    }
+
+    /* Delete creature */
+    public async deleteCreature(id: number, type: ECreatureType): Promise<boolean> {
+        const deleted = await this._userRepository.deleteCreature(id, type);
+
+        console.log('Deleted creature');
+
+        return deleted;
+    }
+
+    /* Get creature */
+    public async getCreature(id: number, type: ECreatureType): Promise<Creature> {
+        return (await this.getCreatures([id], type))[0];
+    }
+
+    /* Get creatures */
+    public async getCreatures(ids?: number[], type?: ECreatureType): Promise<Creature[]> {
+        const creatures: Creature[] = await this._userRepository.getCreatures(ids, type);
+
+        return creatures;
     }
 
     /* Join game as a dungeon master */
