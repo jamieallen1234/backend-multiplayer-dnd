@@ -22,7 +22,7 @@ ex. A creature has properties, type, inventory, equipment, abilities and movemen
 
 ## How to play - Basics
 
-1. Local server and db must be running.
+1. Local server and db must be running. The game assumes there is a 'user' that exists outside of the game so some endpoints require a user_id.
 
 2. Use postman endpoints: https://web.postman.co/workspace/a16d5e27-1295-412f-810e-4f0f1a1a5cf4/collection/40208442-77148dfd-fb08-474f-a19c-c22fc6f25786?origin=tab-menu
 
@@ -72,6 +72,7 @@ ex. A creature has properties, type, inventory, equipment, abilities and movemen
 - Use ZOD for schema validation so that schemas are enforced everywhere (reduce unexpected errors)
 - Consider making certain operations atomic, such as joining a game
 - The character and monster endpoints should be separated into CreatureType vs CreatureInstance (just like Treasures)
+- Automating updated_at timestamp updates
 
 # Template - Typescript, Node.js, Express, and PostgreSQL
 

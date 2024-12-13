@@ -51,8 +51,8 @@ class UserService {
 
             const monster = await this._userRepository.createCreature(creatureData);
 
-            const row = this.pickIntegerFromRange({ min: 0, max: gameData.map.num_rows - 1 });
-            const col = this.pickIntegerFromRange({ min: 0, max: gameData.map.num_cols - 1 });
+            const row = this.pickIntegerFromRange({ min: 0, max: Number(gameData.map.num_rows) - 1 });
+            const col = this.pickIntegerFromRange({ min: 0, max: Number(gameData.map.num_cols) - 1 });
             const interaction: Interaction = {
                 id: monster.creature.id,
                 interaction_type: EInteractionType.MONSTER
@@ -68,8 +68,8 @@ class UserService {
 
             const treasureId = await this._userRepository.createTreasure(treasureTypes[treasureTypeIndex]);
 
-            const row = this.pickIntegerFromRange({ min: 0, max: gameData.map.num_rows - 1 });
-            const col = this.pickIntegerFromRange({ min: 0, max: gameData.map.num_cols - 1 });
+            const row = this.pickIntegerFromRange({ min: 0, max: Number(gameData.map.num_rows) - 1 });
+            const col = this.pickIntegerFromRange({ min: 0, max: Number(gameData.map.num_cols) - 1 });
             const interaction: Interaction = {
                 id: treasureId,
                 interaction_type: EInteractionType.TREASURE
@@ -95,7 +95,7 @@ class UserService {
         let party: Party = await this._userRepository.createParty(players, partyLocation);
 
         // Create game map
-        const gameMap: GameMap = await this._userRepository.createGameMap(gameData.map.num_rows, gameData.map.num_cols, interactions);
+        const gameMap: GameMap = await this._userRepository.createGameMap(Number(gameData.map.num_rows), Number(gameData.map.num_cols), interactions);
 
         // Create game instance
         const game: Game = await this._userRepository.createGame(gameMap, party, dm);

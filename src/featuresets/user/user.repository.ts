@@ -115,6 +115,10 @@ class UserRepository {
 
     /* Create a creature and all of its components */
     public async createCreature(creatureData: CreateCreatureData): Promise<CreateCreatureResults> {
+        if (!creatureData.abilities) {
+            throw new BadRequestError({ message: 'Could not create creature because abilites are missing'});
+        }
+        
         const createCreaturePropertiesQuery = 'INSERT INTO creature_properties (lvl, xp, hp, abilities) VALUES ($1, $2, $3, $4) RETURNING *';
         const createCreatureTypeQuery = 'INSERT INTO creature_types (class, race, c_type) VALUES ($1, $2, $3) RETURNING *';
         const createInventoryQuery = 'INSERT INTO inventories (equipment_capacity, consumables_capacity, equipment_ids, consumable_ids, currency_ids) VALUES ($1, $2, $3, $4, $5) RETURNING *';
@@ -464,8 +468,8 @@ class UserRepository {
 
         return {
             id: gameMapRow.id,
-            num_rows: gameMapRow.num_rows,
-            num_cols: gameMapRow.num_cols,
+            num_rows: Number(gameMapRow.num_rows),
+            num_cols: Number(gameMapRow.num_cols),
             interactions
         };
     };
@@ -554,8 +558,8 @@ class UserRepository {
             },
             map: {
                 id: gameRow.map_id,
-                num_rows: gameRow.num_rows,
-                num_cols: gameRow.num_cols,
+                num_rows: Number(gameRow.num_rows),
+                num_cols: Number(gameRow.num_cols),
                 interactions
             },
             active: gameRow.active === 'true'
