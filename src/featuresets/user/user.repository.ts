@@ -1,6 +1,6 @@
 import pool from "../../db";
 import { BadRequestError } from "../../middleware/errors";
-import { Combat, Combatant, Consumable, CreateCreatureData, CreateCreatureResults, CreateTreasureType, Creature, CreatureProperties, CreatureType, Currency, DungeonMaster, ECombatantType, ECreatureType, EEquipment, EInteractionType, EItemType, Equipment, ERace, Game, GameInfo, GameMap, Interaction, Inventory, InventoryRow, IteractionData, Location, Party, PartyRow, Player, Range, Treasure, TreasureType, TreasureTypeRow, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema"
+import { Combat, Combatant, Consumable, CreateCreatureData, CreateCreatureResults, CreateTreasureType, Creature, CreatureProperties, CreatureType, Currency, DungeonMaster, ECombatantType, ECreatureType, EEquipment, EInteractionType, EItemType, Equipment, ERace, Game, GameInfo, GameMap, Interaction, Inventory, InventoryRow, IteractionData, Location, mapArrayToRange, mapInteractionsArrayToInteractionsMap, mapInteractionsMapToInteractionsArray, mapRangeToArray, mapTreasureTypeRowToTreasureType, Party, PartyRow, Player, Range, Treasure, TreasureType, TreasureTypeRow, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema"
 
 /**
  * Handles all db operations on the User table.
@@ -10,6 +10,10 @@ class UserRepository {
     constructor() {
         
     }
+
+    /*****************************
+     * Creature Queries
+     *****************************/
 
     /* Create a creature and all of its components */
     public async createCreature(creatureData: CreateCreatureData): Promise<CreateCreatureResults> {
@@ -105,8 +109,7 @@ class UserRepository {
                 } as unknown as Inventory, // Add the missing bits down below
             } as Creature;
 
-            // TODO: test all of these
-            // TODO: do these outside of the for loop to save db reads
+            // TODO: These should be outside of the for loop to save db reads
             const [equipped, equipment, consumables, currencies] = await Promise.all([
                 this.getEquipment(creatureRow.equipped),
                 this.getEquipment(creatureRow.equipment_ids),
@@ -185,7 +188,6 @@ class UserRepository {
             const updateCreatureValues = [equipped_ids, creatureData.creature_name, creatureData.creature_type, creatureData.properties.id, creatureData.type.id, creatureData.inventory.id, id];
 
             const updatedCreatureRow = (await pool.query(updateCreatureQuery, updateCreatureValues)).rows[0];
-            console.log(`Updated creature row to ${updatedCreatureRow}`);
 
             // TODO: the 3 following need to use the connection for rollback purposes
             await this.updateCreatureProperties(creatureData.properties);
@@ -216,8 +218,6 @@ class UserRepository {
 
         const updatedPropertiesRow = (await pool.query(updatePropertiesQuery, updatePropertiesValues)).rows[0];
 
-        console.log(`Updated properties row to: ${JSON.stringify(updatedPropertiesRow)}`);
-
         return true;
     }
 
@@ -234,10 +234,12 @@ class UserRepository {
 
         const updatedTypeRow = (await pool.query(updateTypeQuery, updateTypeValues)).rows[0];
 
-        console.log(`Updated type row to: ${JSON.stringify(updatedTypeRow)}`);
-
         return true;
     }
+
+    /*****************************
+     * Inventory Queries
+     *****************************/
 
     public async updateInventory(inventoryData: Inventory): Promise<boolean> {
         let getInventoryQuery = 'SELECT * FROM inventories WHERE id = $1';
@@ -255,8 +257,6 @@ class UserRepository {
         const updateInventoryValues = [equipment_ids, consumable_ids, currency_ids, inventoryData.equipment_capacity, inventoryData.consumables_capacity, inventoryData.id];
 
         const updatedInventoryRow = (await pool.query(updateInventoryQuery, updateInventoryValues)).rows[0];
-
-        console.log(`Updated inventory row to: ${JSON.stringify(updatedInventoryRow)}`);
 
         return true;
     }
@@ -282,8 +282,6 @@ class UserRepository {
 
         const updatedInventoryRow = (await pool.query(updateInventoryQuery, updateInventoryValues)).rows[0];
 
-        console.log(`Updated inventory row to: ${JSON.stringify(updatedInventoryRow)}`);
-
         return true;
     }
 
@@ -293,7 +291,7 @@ class UserRepository {
         }
 
         const equipmentRows = (await pool.query('SELECT * FROM equipment WHERE id = ANY ($1::int[])', [equipmentIds])).rows;
-        console.log(`equipmentdResults: ${JSON.stringify(equipmentRows)}`);
+
         const equipmentArray: Equipment[] = [];
 
         for(let i = 0; i < equipmentRows.length; ++i) {
@@ -316,7 +314,7 @@ class UserRepository {
         }
 
         const consumableRows = (await pool.query('SELECT * FROM consumables WHERE id = ANY ($1::int[])', [consumableIds])).rows;
-        console.log(`consumableRows: ${JSON.stringify(consumableRows)}`);
+
         const consumables: Consumable[] = [];
 
         for(let i = 0; i < consumableRows.length; ++i) {
@@ -338,7 +336,7 @@ class UserRepository {
         }
     
         const currencyRows = (await pool.query('SELECT * FROM currencies WHERE id = ANY ($1::int[])', [currencyIds])).rows;
-        console.log(`currencyRows: ${JSON.stringify(currencyRows)}`);
+
         const currencies: Currency[] = [];
 
         for(let i = 0; i < currencyRows.length; ++i) {
@@ -354,9 +352,13 @@ class UserRepository {
         return currencies;
     }
 
+    /*****************************
+     * Game Queries
+     *****************************/
+
     public async createGameMap(runRows: number, numColumns: number, interactions: Map<number, Map<number, Interaction[]>>): Promise<GameMap> {
         const interactionsArray: number[] = [];
-        this.mapInteractionsMapToInteractionsArray(interactions, interactionsArray);
+        mapInteractionsMapToInteractionsArray(interactions, interactionsArray);
         
         const createMapQuery = 'INSERT INTO game_map (num_rows, num_cols, interactions) VALUES ($1, $2, $3) RETURNING *';
         
@@ -402,27 +404,6 @@ class UserRepository {
         }
     }
 
-    public async getPlayers(ids: number[]): Promise<Player[]> {
-        const playerRows = (await pool.query('SELECT * FROM player WHERE id = ANY ($1::int[])', [ids])).rows;
-
-        const players: Player[] = [];
-        const creature_ids: number[] = playerRows.filter((player) => player.character_id).map((player) => player.character_id);
-        const creatures: Creature[] = await this.getCreatures(creature_ids);
-
-        for(let i = 0; i < playerRows.length; ++i) {
-            const playerRow = playerRows[i];
-            const player: Player = {
-                id: playerRow.id,
-                user_id: playerRow.user_id,
-                user_name: playerRow.user_name,
-                character_id: playerRow.character_id
-            };
-            players.push(player);
-        }
-
-        return players;
-    }
-
     public getInteractions(interactions: number[]): Map<number, Map<number, Interaction[]>> {
         const interactionsMap = new Map<number, Map<number, Interaction[]>>();
         if (!interactions || interactions.length === 0) {
@@ -434,7 +415,7 @@ class UserRepository {
             throw new BadRequestError({ message: 'Could not parse interactions because array is the wrong format' });
         }
 
-        this.mapInteractionsArrayToInteractionsMap(interactions, interactionsMap);
+        mapInteractionsArrayToInteractionsMap(interactions, interactionsMap);
 
         return interactionsMap;
     }
@@ -444,8 +425,6 @@ class UserRepository {
         const updateGameValues = ['true', id];
 
         const gameRow = (await pool.query(updateGameQuery, updateGameValues)).rows[0];
-
-        console.log(`start gameRow: ${JSON.stringify(gameRow)}`);
 
         return true;
     }
@@ -495,6 +474,10 @@ class UserRepository {
         return game;
     };
 
+    /*****************************
+     * Party/Players/DM Queries
+     *****************************/
+
     public async createParty(players: Player[], location: Location): Promise<Party> {
         const createPartyQuery = 'INSERT INTO party (player_ids, party_location) VALUES ($1, $2) RETURNING *';
         const player_ids: number[] = players.map((player) => player.id) ?? [];
@@ -507,6 +490,27 @@ class UserRepository {
             location,
         };
     };
+
+    public async getPlayers(ids: number[]): Promise<Player[]> {
+        const playerRows = (await pool.query('SELECT * FROM player WHERE id = ANY ($1::int[])', [ids])).rows;
+
+        const players: Player[] = [];
+        const creature_ids: number[] = playerRows.filter((player) => player.character_id).map((player) => player.character_id);
+        const creatures: Creature[] = await this.getCreatures(creature_ids);
+
+        for(let i = 0; i < playerRows.length; ++i) {
+            const playerRow = playerRows[i];
+            const player: Player = {
+                id: playerRow.id,
+                user_id: playerRow.user_id,
+                user_name: playerRow.user_name,
+                character_id: playerRow.character_id
+            };
+            players.push(player);
+        }
+
+        return players;
+    }
 
     public async createPlayer(userId: string, userName: string, characterId: number): Promise<Player> {
         const createPlayerQuery = `INSERT INTO player (user_id, user_name, character_id) VALUES ($1, $2, $3) RETURNING *`;
@@ -571,8 +575,8 @@ class UserRepository {
      * Treasure Queries
      *****************************/
 
+    /* Create treasure */
     public async createTreasure(treasureTypeId: number): Promise<number> {
-        console.log(`Create treasure with treasureTypeId: ${treasureTypeId}`);
         const createTreasureQuery = 'INSERT INTO treasure (treasure_type_id) VALUES ($1) RETURNING *';
         const createTreasureValues = [treasureTypeId];
 
@@ -584,21 +588,21 @@ class UserRepository {
     /* Creates a treasure type */
     public async createTreasureType(data: CreateTreasureType): Promise<TreasureType> {
         const createTreasureTypeQuery = 'INSERT INTO treasure_type (equipment_ids, consumable_ids, currency_ids, num_equipment, num_consumables, num_currencies) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *';
-        const createTreasureTypeValues = [data.equipment_ids, data.consumable_ids, data.currency_ids, this.mapRangeToArray(data.num_equipment), this.mapRangeToArray(data.num_consumables), this.mapRangeToArray(data.num_currencies)];
+        const createTreasureTypeValues = [data.equipment_ids, data.consumable_ids, data.currency_ids, mapRangeToArray(data.num_equipment), mapRangeToArray(data.num_consumables), mapRangeToArray(data.num_currencies)];
 
         const treasureTypeRow = (await pool.query(createTreasureTypeQuery, createTreasureTypeValues)).rows[0];
 
-        return this.mapTreasureTypeRowToTreasureType(treasureTypeRow);
+        return mapTreasureTypeRowToTreasureType(treasureTypeRow);
     }
 
     /* Updates a treasure type */
     public async updateTreasureType(id: number, data: UpdateTreasureType): Promise<TreasureType> {
         const updateTreasureTypeQuery = 'UPDATE treasure_type SET equipment_ids = $1, consumable_ids = $2, currency_ids = $3, num_equipment = $4, num_consumables = $5, num_currencies = $6 WHERE id = $7 RETURNING *';
-        const updateTreasureTypeValues = [data.equipment_ids, data.consumable_ids, data.currency_ids, this.mapRangeToArray(data.num_equipment), this.mapRangeToArray(data.num_consumables), this.mapRangeToArray(data.num_currencies), id];
+        const updateTreasureTypeValues = [data.equipment_ids, data.consumable_ids, data.currency_ids, mapRangeToArray(data.num_equipment), mapRangeToArray(data.num_consumables), mapRangeToArray(data.num_currencies), id];
 
         const treasureTypeRow = (await pool.query(updateTreasureTypeQuery, updateTreasureTypeValues)).rows[0];
 
-        return this.mapTreasureTypeRowToTreasureType(treasureTypeRow);
+        return mapTreasureTypeRowToTreasureType(treasureTypeRow);
     }
 
     /* Gets a treasure type */
@@ -608,7 +612,7 @@ class UserRepository {
 
         const treasureTypeRow = (await pool.query(getTreasureTypeQuery, getTreasureTypeValues)).rows[0];
 
-        return treasureTypeRow ? this.mapTreasureTypeRowToTreasureType(treasureTypeRow) : null;
+        return treasureTypeRow ? mapTreasureTypeRowToTreasureType(treasureTypeRow) : null;
     }
 
     /* Deletes a treasure type */
@@ -630,7 +634,6 @@ class UserRepository {
         const getTreasureValues = [id];
 
         const treasureRow = (await pool.query(getTreasureQuery, getTreasureValues)).rows[0];
-        console.log(`getTreasure treasureRow: ${JSON.stringify(treasureRow)}`);
 
         return {
             id: treasureRow.id,
@@ -640,14 +643,15 @@ class UserRepository {
                 equipment_ids: treasureRow.equipment_ids,
                 consumable_ids: treasureRow.consumable_ids,
                 currency_ids: treasureRow.currency_ids,
-                num_equipment: this.mapArrayToRange(treasureRow.num_equipment),
-                num_consumables: this.mapArrayToRange(treasureRow.num_consumables),
-                num_currencies: this.mapArrayToRange(treasureRow.num_currencies)
+                num_equipment: mapArrayToRange(treasureRow.num_equipment),
+                num_consumables: mapArrayToRange(treasureRow.num_consumables),
+                num_currencies: mapArrayToRange(treasureRow.num_currencies)
             },
             opened: treasureRow.opened === 'true',
         }
     }
 
+    /* Get treasure type ids */
     public async getTreasureTypeIds(): Promise<number[]> {
         const treasureIdRows = (await pool.query('SELECT id FROM treasure_type')).rows;
         const treasureIds = treasureIdRows.map((treasureId) => treasureId.id);
@@ -655,18 +659,21 @@ class UserRepository {
         return treasureIds;
     }
 
+    /* Update treasure */
     public async updateTreasure(treasure: Treasure): Promise<Treasure> {
-        console.log(`treasure.opened: ${treasure.opened}`);
         const updateTreasureQuery = 'UPDATE treasure SET treasure_type_id = $1, opened = $2 WHERE id = $3 RETURNING *';
         const updateTreasureValues = [treasure.treasure_type.id, treasure.opened ? 'true' : 'false', treasure.id];
 
         const treasureRows = (await pool.query(updateTreasureQuery, updateTreasureValues)).rows;
 
-        console.log(`updateTreasure treasureRows: ${JSON.stringify(treasureRows)}`);
-
         return treasure;
     }
 
+    /*****************************
+     * Party Queries
+     *****************************/
+
+    /* Get party */
     public async getPartyRow(id: number): Promise<PartyRow> {
         const getPartyQuery = 'SELECT * FROM party WHERE id = $1';
         const getPartyValues = [id];
@@ -674,6 +681,18 @@ class UserRepository {
         const partyRow = (await pool.query(getPartyQuery, getPartyValues)).rows[0];
 
         return partyRow;
+    }
+
+    /* Update party */
+    public async updateParty(partyId: number, party: Party): Promise<Party> {
+        const playerIds = party.players.map((player) => player.id);
+        const partyLocation = [party.location.row, party.location.col];
+        const updatePartyQuery = 'UPDATE party SET player_ids = $1, party_location = $2 WHERE id = $3 RETURNING *';
+        const updatePartyValues = [playerIds, partyLocation, partyId];
+
+        await pool.query(updatePartyQuery, updatePartyValues);
+
+        return party;
     }
 
     /* Get the inventories for the characters from the list of players */
@@ -701,6 +720,11 @@ class UserRepository {
         });
     }
 
+    /*****************************
+     * Combat Queries
+     *****************************/
+
+    /* Create combatant */
     public async createCombatant(creature: Creature, type: ECombatantType): Promise<Combatant> {
         const createCombatantQuery = 'INSERT INTO combatant (creature_id, combatant_type) VALUES ($1, $2) RETURNING *';
         const createCombatantValues = [creature.id, type];
@@ -714,6 +738,7 @@ class UserRepository {
         };
     }
 
+    /* Get combatants */
     public async getCombatants(combatantIds: number[]): Promise<Combatant[]> {
         const getCombatantsQuery = 'SELECT * FROM combatant WHERE id = ANY ($1::int[])';
         const getCombatantsValues = [combatantIds];
@@ -738,6 +763,7 @@ class UserRepository {
         return combatants;
     }
 
+    /* Create combat */
     public async createCombat(combatants: Combatant[]): Promise<Combat> {
         const combatantIds = combatants.map((combatant) => combatant.id);
         const createCombatQuery = 'INSERT INTO combat (combatant_ids) VALUES ($1) RETURNING *';
@@ -754,11 +780,16 @@ class UserRepository {
         };
     }
 
+    /* Get combat */
     public async getCombat(id: number): Promise<Combat> {
         const getCombatQuery = 'SELECT * FROM combat WHERE id = $1';
         const getCombatValues = [id];
 
         const combatRow = (await pool.query(getCombatQuery, getCombatValues)).rows[0];
+
+        if (!combatRow) {
+            throw new BadRequestError({ message: 'Could not get combat because specified value does not exist.' });
+        }
 
         const combatants = await this.getCombatants(combatRow.combatant_ids);
 
@@ -771,6 +802,7 @@ class UserRepository {
         };
     }
 
+    /* Update combat */
     public async updateCombat(combat: Combat): Promise<Combat> {
         const combatantIds = combat.combatants.map((combatant) => combatant.id);
         const updateCombatQuery = 'UPDATE combat SET combatant_ids = $1, combatant_turn_index = $2, fainted_monster_ids = $3, fainted_character_ids = $4 WHERE id = $5 RETURNING *';
@@ -781,17 +813,7 @@ class UserRepository {
         return combat;
     }
 
-    public async updateParty(partyId: number, party: Party): Promise<Party> {
-        const playerIds = party.players.map((player) => player.id);
-        const partyLocation = [party.location.row, party.location.col];
-        const updatePartyQuery = 'UPDATE party SET player_ids = $1, party_location = $2 WHERE id = $3 RETURNING *';
-        const updatePartyValues = [playerIds, partyLocation, partyId];
-
-        await pool.query(updatePartyQuery, updatePartyValues);
-
-        return party;
-    }
-
+    /* Delete combat */
     public async deleteCombat(gameId: number, combatId: number): Promise<boolean> {
         const deleteCombatQuery = 'DELETE FROM combat WHERE id = $1';
         const deleteCombatValues = [combatId];
@@ -804,68 +826,6 @@ class UserRepository {
         await pool.query(updateGameQuery, updateGameValues);
 
         return true;
-    }
-
-    // TODO: move mappings to own file to improve seperation of concern
-    private mapRangeToArray(range: Range): number[] {
-        return [range.min, range.max];
-    }
-
-    private mapArrayToRange(data: number[]): Range {
-        if (!data || data.length !== 2) {
-            throw new BadRequestError({ message: 'Cannot map array to range' });
-        }
-
-        return { min: data[0], max: data[0]};
-    }
-
-    private mapTreasureTypeRowToTreasureType(row: TreasureTypeRow): TreasureType {
-        return {
-            id: row.id,
-            equipment_ids: row.equipment_ids,
-            consumable_ids: row.consumable_ids,
-            currency_ids: row.currency_ids,
-            num_equipment: this.mapArrayToRange(row.num_equipment),
-            num_consumables: this.mapArrayToRange(row.num_consumables),
-            num_currencies: this.mapArrayToRange(row.num_currencies)
-        };
-    };
-
-    private mapInteractionsArrayToInteractionsMap(interactions: number[], interactionsMap: Map<number, Map<number, Interaction[]>>): void {
-        for (let i = 0; i <= EInteractionType.SIZE + 1; ++i) {
-            const data: IteractionData = {row: interactions[i], col: interactions[i + 1], id: interactions[i + 2], interaction_type: interactions[i + 3]};
-            
-            let columns = interactionsMap.get(data.row);
-            if (!columns) {
-                columns = new Map<number, Interaction[]>();
-                interactionsMap.set(data.row, columns);
-            }
-
-            let tileInteractions: Interaction[] | undefined = columns.get(data.col);
-            if(!tileInteractions) {
-                tileInteractions = [];
-                columns.set(data.col, tileInteractions);
-            }
-
-            tileInteractions.push({
-                id: data.id,
-                interaction_type: data.interaction_type
-            });
-        }
-    }
-
-    private mapInteractionsMapToInteractionsArray(interactionsMap: Map<number, Map<number, Interaction[]>>, interactions: number[]): void {
-        for (let [row, colMap] of interactionsMap) {
-            for (let [col, tileInteractions] of colMap) {
-                for (let i = 0; i < tileInteractions.length; ++i) {
-                    const interaction: Interaction = tileInteractions[i];
-                    interactions.push(row);
-                    interactions.push(col);
-                    interactions.push(interaction.id);
-                    interactions.push(interaction.interaction_type as EInteractionType);
-                }
-            }
-        }
     }
 }
 

@@ -1,10 +1,11 @@
+import { Console } from "console";
 import e from "express";
 import { BadRequestError } from "../../middleware/errors";
 import UserRepository from "./user.repository";
-import { Combat, Combatant, CreateCreatureData, CreateCreatureResults, CreateGameData, CreateTreasureType, Creature, EAbilities, EClass, ECombatantType, ECreatureType, EDirection, EInteractionType, EItemType, ERace, Game, GameInfo, GameMap, GetCreatureRow, Interaction, Inventory, InventoryRow, Location, MAX_MONSTERS_ON_MAP, MAX_PLAYERS, MAX_TREASURES_ON_MAP, Party, Player, Range, Treasure, TreasureType, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema";
+import { Combat, Combatant, CreateCreatureData, CreateCreatureResults, CreateGameData, CreateTreasureType, Creature, EAbilities, EClass, ECombatantType, ECreatureType, EDirection, EInteractionType, EItemType, ERace, Game, GameInfo, GameMap, Interaction, InventoryRow, Location, mapCreatureResultsToCreature, MAX_MONSTERS_ON_MAP, MAX_PLAYERS, MAX_TREASURES_ON_MAP, Party, Player, Range, Treasure, TreasureType, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema";
 
 /**
- * Handles all db operations on the User table.
+ * Handles service level logic.
  */
 class UserService {
 
@@ -14,6 +15,7 @@ class UserService {
         this._userRepository = userRepository;
     }
 
+    /* Create monster */
     public async createMonster(monsterDetails: CreateCreatureData): Promise<Creature> {
         if (monsterDetails.type !== ECreatureType.MONSTER) {
             throw new BadRequestError({ message: 'Could not create monster because type was not of monster' });
@@ -22,6 +24,7 @@ class UserService {
         return this.createCreature(monsterDetails);
     }
 
+    /* Create character */
     public async createCharacter(characterData: CreateCreatureData): Promise<Creature> {
         if (characterData.type !== ECreatureType.CHARACTER) {
             throw new BadRequestError({ message: 'Could not create character because type was not of character' });
@@ -30,12 +33,16 @@ class UserService {
         return this.createCreature(characterData);
     }
 
+    /* Create creature */
     public async createCreature(creatureDetails: CreateCreatureData): Promise<Creature> {
         const creatureResults: CreateCreatureResults = await this._userRepository.createCreature(creatureDetails);
 
-        return this.mapCreatureResultsToCreature(creatureResults);
+        console.log(`Created creature of type ${creatureDetails.type}`);
+
+        return mapCreatureResultsToCreature(creatureResults);
     }
 
+    /* Update creature */
     public async updateCreature(creatureId: number, creatureData: UpdateCreatureData): Promise<boolean> {
         if (!creatureData.properties?.id) {
             throw new BadRequestError({ message: `Could not update creature ${creatureId} because properties is missing` });
@@ -50,54 +57,28 @@ class UserService {
         return updated;
     }
 
+    /* Delete creature */
     public async deleteCreature(id: number, type: ECreatureType): Promise<boolean> {
         const deleted = await this._userRepository.deleteCreature(id, type);
+
+        console.log('Deleted creature');
 
         return deleted;
     }
 
+    /* Get creature */
     public async getCreature(id: number, type: ECreatureType): Promise<Creature> {
         return (await this.getCreatures([id], type))[0];
     }
 
+    /* Get creatures */
     public async getCreatures(ids?: number[], type?: ECreatureType): Promise<Creature[]> {
         const creatures: Creature[] = await this._userRepository.getCreatures(ids, type);
 
         return creatures;
     }
 
-    private mapCreatureResultsToCreature(data: CreateCreatureResults): Creature {
-        const creature: Creature = {
-            id: data.creature.id,
-            creature_name: data.creature.creature_name,
-            creature_type: data.creature.creature_type,
-            properties: data.properties,
-            type: data.type,
-            inventory: data.inventory,
-            equipped: data.equipped
-        };
-
-        console.log(`Mapped creature: ${JSON.stringify(creature)}`);
-
-        return creature;
-    }
-
-    private setTileInteraction(row: number, col: number, interaction: Interaction, interactions: Map<number, Map<number, Interaction[]>>): void {
-        let interactionsRow = interactions.get(row);
-        if (!interactionsRow) {
-            interactionsRow = new Map<number, Interaction[]>();
-            interactions.set(row, interactionsRow);
-        }
-
-        let tileInteractions: Interaction[] | undefined = interactionsRow.get(col);
-        if (!tileInteractions) {
-            tileInteractions = [];
-        }
-        tileInteractions.push(interaction);
-        interactionsRow.set(col, tileInteractions);
-        interactions.set(row, interactionsRow);
-    }
-
+    /* Create game */
     public async createGame(gameData: CreateGameData): Promise<Game> {
         // TODO: use a transaction to avoid partial game creations on error
         const partyLocation: Location = { row: 0, col: 0 }; // temp until replaced with real map data
@@ -143,7 +124,7 @@ class UserService {
             };
 
             this.setTileInteraction(row, col, interaction, interactions);
-            console.log(`Adding monster ${monster.creature.id} to row ${row} and col ${col} of interactions map`);
+            console.log(`Added monster ${monster.creature.id} to row ${row} and col ${col} of interactions map`);
         }
 
         // Add random treasures to map
@@ -160,7 +141,7 @@ class UserService {
             };
 
             this.setTileInteraction(row, col, interaction, interactions);
-            console.log(`Adding treasure ${treasureId} to row ${row} and col ${col} of interactions map`);
+            console.log(`Added treasure ${treasureId} to row ${row} and col ${col} of interactions map`);
         }
 
         // Create player if provided
@@ -184,11 +165,13 @@ class UserService {
         // Create game instance
         const game: Game = await this._userRepository.createGame(gameMap, party, dm);
 
+        console.log(`Created new game with map of dimensions ${gameMap.num_rows} * ${gameMap.num_cols}, ${numMonstersToAdd} random monsters and ${numTreasuresToAdd} random treasures.`);
+
         return game;
     }
 
+    /* Update game */
     public async updateGame(id: number, gameData: UpdateGameData): Promise<Game> {
-        // TODO: reference updateCreature
         if (!gameData.party) {
             throw new BadRequestError({ message: `Could not update game ${id} because party is missing` });
         } else if (!gameData.map) {
@@ -200,12 +183,14 @@ class UserService {
         return game;
     }
 
+    /* Get game */
     public async getGame(id: number): Promise<Game> {
         const game: Game = await this._userRepository.getGame(id);
 
         return game;
     }
 
+    /* Start game */
     public async startGame(id: number): Promise<boolean> {
         const game: Game = (await this._userRepository.getGame(id));
 
@@ -228,11 +213,15 @@ class UserService {
 
         const isStarted = await this._userRepository.startGame(id);
 
+        console.log('Game instance has started!');
+
         return isStarted;
     }
 
     
     /**
+     * Get available games that a player can join
+     * 
      * This is a naive implementation of getting a list of available games.
      * For a large player base the games would likely be paritioned by
      * region and geolocation, and would be paginated.
@@ -243,18 +232,23 @@ class UserService {
         return gameRows;
     }
 
+    /* Get available games that a dungeon master can join */
     public async getAvailableDungeonMasterList(): Promise<GameInfo[]> {
         const gameRows = await this._userRepository.getAvailableDungeonMasterList();
 
         return gameRows;
     }
 
+    /* Create treasure */
     public async createTreasure(data: CreateTreasureType): Promise<TreasureType> {
         const treasureType = await this._userRepository.createTreasureType(data);
+
+        console.log(`Created a new treasure type!`);
 
         return treasureType;
     }
 
+    /* Update treasure */
     public async updateTreasure(id: number, data: UpdateTreasureType): Promise<TreasureType> {
         const existingTreasureType = await this._userRepository.getTreasureType(id);
         if (!existingTreasureType) {
@@ -266,6 +260,7 @@ class UserService {
         return treasureType;
     }
 
+    /* Get treasure */
     public async getTreasure(id: number): Promise<TreasureType> {
         const treasureType = await this._userRepository.getTreasureType(id);
 
@@ -276,6 +271,7 @@ class UserService {
         return treasureType;
     }
 
+    /* Delete treasure */
     public async deleteTreasure(id: number): Promise<boolean> {
         const existingTreasureType = await this._userRepository.getTreasureType(id);
         if (!existingTreasureType) {
@@ -288,30 +284,6 @@ class UserService {
         return true;
     }
 
-    private pickIntegerFromRange(range: Range): number {
-        const randomAmount = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
-
-        return randomAmount;
-    }
-
-    /* Pick loot from the available choices. Results may include duplicates. */
-    private getLoot(range: Range, ids: number[]): number[] {
-        if (!range || !ids || ids.length === 0) {
-            return [];
-        }
-        
-        const lootAmount = this.pickIntegerFromRange(range);
-        const loot: number[] = [];
-        const numLootTypes = ids.length;
-   
-        for (let i = 0; i < lootAmount; ++i) {
-            const id = ids[Math.floor(Math.random() * numLootTypes)];
-            loot.push(id);
-        }
-
-        return loot;
-    }
-
     /**
      * Open up a treasure.
      *
@@ -320,15 +292,22 @@ class UserService {
      * It would also be better to give loot to another player if the selected players inventory is full.
      */
     public async openTreasureInstance(treasureId: number, partyId: number): Promise<void> {
+        // TODO: Should require party to be in the same tile to open treasure
+        
         const existingTreasure: Treasure = await this._userRepository.getTreasure(treasureId);
-        console.log(`existingTreasure: ${JSON.stringify(existingTreasure)}`);
+
         if (!existingTreasure) {
             throw new BadRequestError({ message: 'Could not open treasure because it does not exist.' });
         } else if (existingTreasure.opened) {
             throw new BadRequestError({ message: 'Could not open treasure because it was already opened.' });
         }
 
-        const playerIds = (await this._userRepository.getPartyRow(partyId)).player_ids;
+        const party = await this._userRepository.getPartyRow(partyId);
+        if (!party) {
+            throw new BadRequestError({ message: 'Could not open treasure because the specified party does not exist.' });
+        }
+        
+        const playerIds = party.player_ids;
         const inventoryRows: InventoryRow[] = (await this._userRepository.getInventoryIds(playerIds));
 
         if (!playerIds || playerIds.length === 0) {
@@ -384,8 +363,10 @@ class UserService {
 
         // TODO: get the names of all the loot and the names of the players
         console.log('Opened treasure chest and doled out the loot to the players randomly.');
+        console.log('Check characters inventory to see what loot they got.');
     }
 
+    /* Join game as a dungeon master */
     public async joinGameAsDungeonMaster(gameId: number, userId: string, userName: string): Promise<boolean> {
         if (!gameId) {
             throw new BadRequestError({ message: 'Could join game as dm because no game id supplied.' });
@@ -412,9 +393,12 @@ class UserService {
 
         await this._userRepository.updateGame(game.id, game);
 
+        console.log('Joined game as a dungeon master!');
+
         return true;
     }
 
+    /* Join game as a player */
     public async joinGameAsPlayer(gameId: number, userId: string, userName: string, characterId: number): Promise<boolean> {
         if (!gameId) {
             throw new BadRequestError({ message: 'Could join game as player because no game id supplied.' });
@@ -448,9 +432,12 @@ class UserService {
 
         await this._userRepository.updateGame(game.id, game);
 
+        console.log('Joined game as a player!');
+
         return true;
     }
 
+    /* Begin combat */
     public async beginCombat(gameId: number, location: Location): Promise<Combat> {
         const game: Game = await this._userRepository.getGame(gameId);
 
@@ -488,22 +475,30 @@ class UserService {
 
         const combat: Combat = await this._userRepository.createCombat(combatants);
 
+        console.log(`Combat has started! There are ${characterIds} characters and ${monsterIds.length} monsters in the battle.`);
+        console.log(`It is creature ${combatants[0].creature.creature_name} turn to attack.`);
+
         return combat;
     }
 
     /* Very basic tile-based movement. Only allow the party to move 1 tile at a time. */
     public async moveParty(gameId: number, playerId: number, direction: EDirection): Promise<Location> {
         if (!gameId) {
-            throw new BadRequestError({ message: 'Could not move player because no game id supplied.' });
+            throw new BadRequestError({ message: 'Could not move party because no game id supplied.' });
         } else if (!playerId) {
-            throw new BadRequestError({ message: 'Could not move player because no player id supplied.' });
+            throw new BadRequestError({ message: 'Could not move party because no player id supplied.' });
         } else if (!direction) {
-            throw new BadRequestError({ message: 'Could not move player because no direction supplied.' });
+            throw new BadRequestError({ message: 'Could not move party because no direction supplied.' });
         }
 
-        // TODO: throw if game state doesn't allow for movement (such as during combat)
-
         const game: Game = await this._userRepository.getGame(gameId);
+        
+        if (!game.active) {
+            throw new BadRequestError({ message: 'Could not move party because game is not active.' });
+        } else if (game.combat) {
+            throw new BadRequestError({ message: 'Could not move party because game is in combat mode.' });
+        }
+        
         const party: Party = game.party;
         const players: Player[] = party.players;
         
@@ -517,7 +512,6 @@ class UserService {
         const partyLocation: Location = party.location;
 
         // Update party location
-        // TODO: Make sure party can move in the specified direction by checking map boundries and checking for walkable areas
         switch(direction) {
             case EDirection.NORTH:
                 if (partyLocation.row >= game.map.num_rows - 1) {
@@ -547,9 +541,12 @@ class UserService {
 
         await this._userRepository.updateParty(party.id, party);
 
+        console.log('The party has moved. This is a good time to check for monsters or treasure!')
+
         return partyLocation;
     }
 
+    /* Handle combat win */
     private async onCombatWin(gameId: number, combat: Combat): Promise<void> {
         console.log(`Party has vanquished the enemies and won combat!`);
         // TODO: Loot monsters
@@ -562,6 +559,7 @@ class UserService {
         await this._userRepository.deleteCombat(gameId, combat.id);
     }
 
+    /* Handle combat loss */
     private async onCombatLoss(gameId: number, combat: Combat): Promise<void> {
         console.log(`Party has lost combat and is unabled to continue!`);
         // TODO: Teleport team to healing area
@@ -646,6 +644,50 @@ class UserService {
         combat.combatantTurnIndex = (Number(combat.combatantTurnIndex) + 1) % combat.combatants.length;
 
         await this._userRepository.updateCombat(combat);
+
+        console.log(`Combat continues! It is creature ${combat.combatants[combat.combatantTurnIndex].creature.creature_name} turn to attack.`);
+    }
+
+    /* Setup a tile in the interactions map */
+    private setTileInteraction(row: number, col: number, interaction: Interaction, interactions: Map<number, Map<number, Interaction[]>>): void {
+        let interactionsRow = interactions.get(row);
+        if (!interactionsRow) {
+            interactionsRow = new Map<number, Interaction[]>();
+            interactions.set(row, interactionsRow);
+        }
+
+        let tileInteractions: Interaction[] | undefined = interactionsRow.get(col);
+        if (!tileInteractions) {
+            tileInteractions = [];
+        }
+        tileInteractions.push(interaction);
+        interactionsRow.set(col, tileInteractions);
+        interactions.set(row, interactionsRow);
+    }
+
+    /* Choose an integer within a range of numebrs, inclusive */
+    private pickIntegerFromRange(range: Range): number {
+        const randomAmount = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+
+        return randomAmount;
+    }
+
+    /* Pick loot from the available choices. Results may include duplicates. */
+    private getLoot(range: Range, ids: number[]): number[] {
+        if (!range || !ids || ids.length === 0) {
+            return [];
+        }
+        
+        const lootAmount = this.pickIntegerFromRange(range);
+        const loot: number[] = [];
+        const numLootTypes = ids.length;
+   
+        for (let i = 0; i < lootAmount; ++i) {
+            const id = ids[Math.floor(Math.random() * numLootTypes)];
+            loot.push(id);
+        }
+
+        return loot;
     }
 }
 

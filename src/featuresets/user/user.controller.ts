@@ -2,7 +2,9 @@ import { Request, Response } from "express";
 import UserService from "./user.service";
 import { CreateCreatureData, CreateGameData, ECreatureType, UpdateCreatureData, UpdateGameData } from "./user.schema";
 
-// https://node-postgres.com/features/queries
+/**
+ * Controller handles requests and responses.
+ */
 class UserController {
     private userService: UserService;
     constructor(userService: UserService) {

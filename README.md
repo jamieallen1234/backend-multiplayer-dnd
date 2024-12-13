@@ -1,6 +1,6 @@
 # DnD Multiplayer Demo
 
-This project is a designed to simulate a 2-4 player game of DnD with an Admin.
+This project is a designed to simulate a 1-4 player game of DnD with an Dungeon Master.
 
 The project makes use of programming best practices such as seperation-of-concern, MCS (model-controller-service) and ECS (entity-component-system).
 
@@ -11,7 +11,7 @@ Service - Service classes that take care of business logic and interact with the
 
 Seperation of Concerns:
 .routes - API (urls + http methods)
-.controller - Incoming requests and outgoing responses (TODO: add security layer - authentication and authorization)
+.controller - Incoming requests and outgoing responses
 .service - Business logic
 .repository - DB connections and queries
 .schema - Data schemas
@@ -20,19 +20,61 @@ ECS:
 Each entity is made up of components to make the data structures easily reusable and more flexible.
 ex. A creature has properties, type, inventory, equipment, abilities and movement components
 
+## How to play - Basics
 
-TODO: change folder structure:
-    API - routes + controllers
-    models - DB
-    services - Services
-    subscribers - event handlers
+1. Local server and db must be running.
 
+2. Use postman endpoints: https://web.postman.co/workspace/a16d5e27-1295-412f-810e-4f0f1a1a5cf4/collection/40208442-77148dfd-fb08-474f-a19c-c22fc6f25786?origin=tab-menu
+
+4. Use postman "Create Character".
+
+3. Use postman "Create monster" at least once.
+
+5. Use postman "Create treasure" at least once.
+
+6. Use Postman "Create game as Player".
+
+7. Use Postman "Get Available Games for DM".
+
+8. Use Postman "Join Game as DM".
+
+9. Use Postman "Start Game".
+
+10. The game has started, so now you can move, open treasures or start combat.
+
+11. To fight monsters they must be in the same tile as the party.
+
+12. When combat starts, it ends only after the party's characters hp is reduced to 0 or all the monsters hp is reduced to 0.
+
+13. When opening a treasure, the loot is randomly dispersed accross the party and put into the players inventory.
+
+14. Any player can move the party. They must stay within the bounds of the map.
+
+## Challenges
+
+- Using purely relational db tables instead of JSON schemas was a lot more mork
+- Due to time constraints I only added unit tests for the most important functions
+- Not using sql client such as Slonik or an ORM meant more work to create queries
+- Interpreting the instructions took a while
+
+## Considerations
+- I would have liked to use a limited state machine in my design:
+    INITIAL -> START -> WORLD <-> COMBAT
+  and a state machine for combat, so that it is clearer what state the game is in
+- Websockets to update each player and DM immediately
+- JWT logins for security
+- pass game_id to all game endpoints to improve authorization
+- Add support for NPCs, equipping items, consumable items, spells etc.
+- Applying XP and leveling up after combat
+- Use redis cache for gamestate instead of presisting in tables to reduce db load
+- Use ZOD for schema validation
+- Consider making certain operations atomic, such as joining a game
 
 # Template - Typescript, Node.js, Express, and PostgreSQL
 
 This project uses a basic template designed for interview purposes. It is built with TypeScript, Node.js, Express, and PostgreSQL, all containerized using Docker.
 
-## Getting Started
+## Getting Started - Setup
 
 Follow these steps to set up the project on your local machine for development and testing.
 
@@ -112,10 +154,6 @@ npm run test
   - `GET /users`: Retrieve all users
   - `POST /usersTransaction`: Add users as a transaction (an example of how to implement transactions if needed)
 
-### BLOG
+### Reference
 
-If you're interested in learning more about how I built this boilerplate, check out my blog post where I explain the process step-by-step: https://dev.to/giulianaolmos/technical-interview-boilerplate-1-node-typescript-postgresql-an1
-
-### READMEforProject
-
-If you're using this boilerplate as a starting point, I encourage you to create your own version that suits your specific needs. You can adapt this README.md template for your project to provide detailed instructions to your users.
+https://dev.to/giulianaolmos/technical-interview-boilerplate-1-node-typescript-postgresql-an1
