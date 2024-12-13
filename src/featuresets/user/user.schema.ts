@@ -359,7 +359,7 @@ export function mapArrayToRange(data: number[]): Range {
         throw new BadRequestError({ message: 'Cannot map array to range' });
     }
 
-    return { min: data[0], max: data[0]};
+    return { min: data[0], max: data[1]};
 }
 
 export function mapTreasureTypeRowToTreasureType(row: TreasureTypeRow): TreasureType {

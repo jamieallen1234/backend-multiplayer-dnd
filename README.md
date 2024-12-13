@@ -69,7 +69,7 @@ ex. A creature has properties, type, inventory, equipment, abilities and movemen
 - Add support for NPCs, equipping items, consumable items, spells etc.
 - Applying XP and leveling up after combat
 - Use redis cache for gamestate instead of presisting in tables to reduce db load
-- Use ZOD for schema validation
+- Use ZOD for schema validation so that schemas are enforced everywhere (reduce unexpected errors)
 - Consider making certain operations atomic, such as joining a game
 - The character and monster endpoints should be separated into CreatureType vs CreatureInstance (just like Treasures)
 

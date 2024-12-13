@@ -1,5 +1,3 @@
-import { Console } from "console";
-import e from "express";
 import { BadRequestError } from "../../middleware/errors";
 import UserRepository from "./user.repository";
 import { Combat, Combatant, CreateCreatureData, CreateCreatureResults, CreateGameData, CreateTreasureType, Creature, EAbilities, EClass, ECombatantType, ECreatureType, EDirection, EInteractionType, EItemType, ERace, Game, GameInfo, GameMap, Interaction, InventoryRow, Location, mapCreatureResultsToCreature, MAX_MONSTERS_ON_MAP, MAX_PLAYERS, MAX_TREASURES_ON_MAP, Party, Player, Range, Treasure, TreasureType, UpdateCreatureData, UpdateGameData, UpdateTreasureType } from "./user.schema";
@@ -241,6 +239,10 @@ class UserService {
 
     /* Create treasure */
     public async createTreasure(data: CreateTreasureType): Promise<TreasureType> {
+        if (!data.consumable_ids || !data.currency_ids || !data.equipment_ids) {
+            throw new BadRequestError({ message: 'Could not create treasure because item data is missing.' });
+        }
+
         const treasureType = await this._userRepository.createTreasureType(data);
 
         console.log(`Created a new treasure type!`);

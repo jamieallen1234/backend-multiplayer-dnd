@@ -1,89 +1,102 @@
 import { Request, Response } from "express";
 import UserController from "../../featuresets/user/user.controller";
 import pool from "../../db";
+import UserService from "../../featuresets/user/user.service";
+import UserRepository from "../../featuresets/user/user.repository";
 
 jest.mock("../../db");
 
 describe("UserController", () => {
-  let userController: UserController;
-  let req: Partial<Request>;
-  let res: Partial<Response>;
-  let jsonMock: jest.Mock;
-  let statusMock: jest.Mock;
+    let userRepository: UserRepository;
+    let userService: UserService;
+    let userController: UserController;
+    let req: Partial<Request>;
+    let res: Partial<Response>;
+    let jsonMock: jest.Mock;
+    let statusMock: jest.Mock;
 
-  /*
-  beforeEach(() => {
-    userController = new UserController();
-    req = {};
-    jsonMock = jest.fn();
-    statusMock = jest.fn().mockReturnValue({ json: jsonMock });
-    res = {
-      status: statusMock,
-    };
-  });
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("should get all users", async () => {
-    const mockUsers = [{ id: 1, name: "John Doe", email: "john@example.com" }];
-    (pool.query as jest.Mock).mockResolvedValue({ rows: mockUsers });
-
-    await userController.getIndex(req as Request, res as Response);
-
-    expect(statusMock).toHaveBeenCalledWith(200);
-    expect(jsonMock).toHaveBeenCalledWith(mockUsers);
-  });
-
-  it("should create a new user", async () => {
-    const mockUser = { id: 1, name: "John Doe", email: "john@example.com" };
-    req.body = { name: "John Doe", email: "john@example.com" };
-    (pool.query as jest.Mock).mockResolvedValue({ rows: [mockUser] });
-
-    await userController.createUser(req as Request, res as Response);
-
-    expect(statusMock).toHaveBeenCalledWith(200);
-    expect(jsonMock).toHaveBeenCalledWith({
-      message: "User added successfully",
-      user: mockUser,
+    beforeEach(() => {
+        userRepository = new UserRepository();
+        userService = new UserService(userRepository);
+        userController = new UserController(userService);
+        req = {};
+        jsonMock = jest.fn();
+        statusMock = jest.fn().mockReturnValue({ json: jsonMock });
+        res = {
+            status: statusMock,
+        };
     });
-  });
 
-  it("should get a user by ID", async () => {
-    const mockUser = { id: 1, name: "John Doe", email: "john@example.com" };
-    req.params = { id: "1" };
-    (pool.query as jest.Mock).mockResolvedValue({ rows: [mockUser] });
-
-    await userController.getUserById(req as Request, res as Response);
-
-    expect(statusMock).toHaveBeenCalledWith(200);
-    expect(jsonMock).toHaveBeenCalledWith([mockUser]);
-  });
-
-  it("should update a user", async () => {
-    req.params = { id: "1" };
-    req.body = { email: "john.new@example.com" };
-    (pool.query as jest.Mock).mockResolvedValue({});
-
-    await userController.updateUser(req as Request, res as Response);
-
-    expect(statusMock).toHaveBeenCalledWith(200);
-    expect(jsonMock).toHaveBeenCalledWith({
-      message: "User updated successfully",
+    afterEach(() => {
+        jest.clearAllMocks();
     });
-  });
 
-  it("should delete a user", async () => {
-    req.params = { id: "1" };
-    (pool.query as jest.Mock).mockResolvedValue({});
-
-    await userController.deleteUser(req as Request, res as Response);
-
-    expect(statusMock).toHaveBeenCalledWith(200);
-    expect(jsonMock).toHaveBeenCalledWith({
-      message: "User deleted successfully",
+    it("should create a new treasure", async () => {
+        const mockTreasure = { id: 1, equipment_ids: [1], consumable_ids: [1], currency_ids: [1], num_equipment: [1,10], num_consumables: [1,10], num_currencies: [1,10], created_at: Date.now(), updated_at: Date.now() };
+        req.body = {
+            "treasureData": {
+                "equipment_ids": [1],
+                "consumable_ids": [1],
+                "currency_ids": [1],
+                "num_equipment": {
+                    "min": 1,
+                    "max": 10
+                },
+                "num_consumables": {
+                    "min": 1,
+                    "max": 10
+                },
+                "num_currencies": {
+                    "min": 1,
+                    "max": 10
+                }
+            }
+        };
+        (pool.query as jest.Mock).mockResolvedValue({ rows: [mockTreasure] });
+    
+        await userController.createTreasure(req as Request, res as Response);
+    
+        expect(statusMock).toHaveBeenCalledWith(200);
+        expect(jsonMock).toHaveBeenCalledWith({
+            "id": 1,
+            ...req.body.treasureData
+        });
     });
-  });
-  */
+
+    it("should not create a new treasure", async () => {
+        req.body = {
+            "treasureData": {
+                "equipment_ids": [1],
+                "consumable_ids": [1],
+                "num_equipment": {
+                    "min": 1,
+                    "max": 10
+                },
+                "num_consumables": {
+                    "min": 1,
+                    "max": 10
+                },
+                "num_currencies": {
+                    "min": 1,
+                    "max": 10
+                }
+            }
+        };
+
+        try {
+            await userController.createTreasure(req as Request, res as Response);
+            // Fail test if above expression doesn't throw anything.
+            expect(true).toBe(false);
+        } catch (e: any) {
+            expect(true).toBe(true);
+        }
+    });
+    
+    // TODO: test
+    // create monster
+    // create character
+    // create game
+    // begin combat
+
 });
