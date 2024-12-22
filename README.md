@@ -4,19 +4,31 @@ This project is a designed to simulate a 1-4 player game of DnD with an Dungeon 
 
 The project makes use of programming best practices such as seperation-of-concern, MCS (model-controller-service) and ECS (entity-component-system).
 
-MCS:
+
+### MCS:
+
 Model - Repository classes that exclusively interact with the DB tables
+
 Controller - Controller classes that take care of security, authentication, authorization and interact with service classes
+
 Service - Service classes that take care of business logic and interact with the models
 
-Seperation of Concerns:
+
+### Seperation of Concerns:
+
 .routes - API (urls + http methods)
+
 .controller - Incoming requests and outgoing responses
+
 .service - Business logic
+
 .repository - DB connections and queries
+
 .schema - Data schemas
 
-ECS:
+
+### ECS:
+
 Each entity is made up of components to make the data structures easily reusable and more flexible.
 ex. A creature has properties, type, inventory, equipment, abilities and movement components
 
@@ -60,6 +72,7 @@ ex. A creature has properties, type, inventory, equipment, abilities and movemen
 - Interpreting the instructions took a while
 
 ## Considerations
+
 - I would have liked to use a limited state machine in my design:
     INITIAL -> START -> WORLD <-> COMBAT
   and a state machine for combat, so that it is clearer what state the game is in
@@ -89,15 +102,6 @@ Make sure you have the following installed:
 - [Node.js](https://nodejs.org/) (v14 or higher)
 - [Docker](https://www.docker.com/get-started)
 - [PostgreSQL](https://www.postgresql.org/download/)
-
-### Installation
-
-1. **Clone the repository**:
-
-   ```sh
-   git clone https://github.com/GiulianaEOlmos/boilerplate-node-express-postgresql.git
-   cd boilerplate-node-express-postgresql
-   ```
 
 ### Running Docker Compose
 
@@ -147,6 +151,8 @@ npm install
 ```sh
 npm run test
 ```
+
+Note you may need to clear the dist folder to get the tests to work properly.
 
 ### Endpoints
 
